@@ -3,12 +3,13 @@
 <head>
   <meta charset="UTF-8" />
   <title>SDTransfer Offloader</title>
-  <!-- style.css is in the same folder as index.html -->
-  <link rel="stylesheet" href="style.css" />
+  <!-- Use Flask's url_for to load style.css from the static folder -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
   <!-- Font Awesome for icons -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha512-p+1vG0+owjT5y8k+9v8g4B+p1tXUJcN/h8H8L+Y9i7Q76fDwPjdFTOi45q6p0bz6N28+7+1IhPzf3c+3aw9P5Q==" crossorigin="anonymous" referrerpolicy="no-referrer" />
 </head>
 <body>
+  <!-- NAVBAR -->
   <header class="navbar">
     <div class="navbar-title"><i class="fa fa-satellite-dish"></i> SDTransfer Offloader</div>
     <nav class="navbar-links">
@@ -21,7 +22,9 @@
     </nav>
   </header>
 
+  <!-- MAIN CONTAINER -->
   <div class="container">
+    <!-- STATUS BAR -->
     <div class="status-bar">
       <div class="status-item">
         <h4>Free Space</h4>
@@ -37,6 +40,7 @@
       </div>
     </div>
 
+    <!-- CONTROL PANEL -->
     <div class="panel">
       <h3>Main Controls</h3>
       <div class="button-group">
@@ -55,6 +59,7 @@
     </div>
   </div>
 
+  <!-- FOOTER -->
   <footer class="footer">
     <p>&copy; 2023 SDTransfer Offloader</p>
   </footer>
