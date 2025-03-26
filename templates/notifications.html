@@ -1,0 +1,11 @@
+<!-- templates/notifications.html -->
+<h2>Email Notifications Configuration</h2>
+<form method="post">
+  SMTP Server: <input name="smtp_server" value="{{ config.smtp_server }}"><br>
+  SMTP Port: <input name="smtp_port" value="{{ config.smtp_port }}"><br>
+  SMTP Username: <input name="smtp_username" value="{{ config.smtp_username }}"><br>
+  SMTP Password: <input type="password" name="smtp_password" value="{{ config.smtp_password }}"><br>
+  Target Email (comma-separated): <input name="target_email" value="{{ config.target_email }}"><br>
+  <input type="submit" value="Save">
+</form>
+<a href="/">Back</a>

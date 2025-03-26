@@ -1,0 +1,9 @@
+<!-- templates/backup.html -->
+<h2>Backup Configuration Files</h2>
+<p>The following files have been backed up:</p>
+<ul>
+{% for file in files %}
+  <li>{{ file }}</li>
+{% endfor %}
+</ul>
+<a href="/">Back</a>

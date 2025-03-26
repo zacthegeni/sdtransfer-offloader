@@ -1,0 +1,27 @@
+<!-- templates/index.html -->
+<h2>SDTransfer</h2>
+<p id="status">Loading...</p>
+<p>Free Space: {{ space }}</p>
+<p>CPU Usage: {{ cpu }}%</p>
+<p>Memory Usage: {{ mem }}%</p>
+<a href="/wifi">Wi-Fi Settings</a><br>
+<a href="/notifications">Email Notifications Config</a><br>
+<a href="/logs">View Logs</a><br>
+<a href="/diagnostics">Diagnostics</a><br>
+<a href="/backup_config">Backup Config</a><br>
+<a href="/update_system">Update System</a><br>
+<a href="/run/upload">Upload Now</a><br>
+<a href="/run/offload">Offload Now</a><br>
+<a href="/run/retry">Retry Offload</a><br>
+<a href="/run/eject">Eject SD Card</a><br>
+<a href="/run/reboot">Reboot Pi</a><br>
+<a href="/run/shutdown">Shutdown Pi</a>
+<script>
+function pollStatus() {
+  fetch('/status', {credentials: 'include'})
+    .then(r => r.json())
+    .then(d => { document.getElementById('status').innerText = d.free_space; });
+}
+setInterval(pollStatus, 10000);
+window.onload = pollStatus;
+</script>

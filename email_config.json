@@ -1,0 +1,7 @@
+{
+    "smtp_server": "smtp.gmail.com",
+    "smtp_port": "587",
+    "smtp_username": "your_email@gmail.com",
+    "smtp_password": "your_email_password",
+    "target_email": "target1@example.com, target2@example.com"
+}

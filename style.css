@@ -1,0 +1,20 @@
+/* style.css */
+
+body {
+  background-color: #222;
+  color: #ddd;
+  font-family: "Segoe UI", Tahoma, sans-serif;
+  margin: 0;
+  padding: 0;
+}
+
+a {
+  color: #0093ff;
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+/* You can add further styling as needed */

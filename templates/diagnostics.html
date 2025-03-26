@@ -1,0 +1,8 @@
+<!-- templates/diagnostics.html -->
+<h2>Diagnostics</h2>
+<p>Uptime: {{ info.uptime }}</p>
+<p>CPU Usage: {{ info.cpu_usage }}</p>
+<p>Memory: {{ info.memory_used }} used of {{ info.memory_total }} ({{ info.memory_percent }})</p>
+<p>Bytes Sent: {{ info.bytes_sent }}, Bytes Received: {{ info.bytes_recv }}</p>
+<pre>Disk Info: {{ info.disk_usage }}</pre>
+<a href="/">Back</a>
