@@ -1,20 +1,131 @@
 /* style.css */
 
-body {
-  background-color: #222;
-  color: #ddd;
-  font-family: "Segoe UI", Tahoma, sans-serif;
-  margin: 0;
-  padding: 0;
-}
-
-a {
-  color: #0093ff;
-  text-decoration: none;
-}
-
-a:hover {
-  text-decoration: underline;
-}
-
-/* You can add further styling as needed */
+/* GLOBAL RESET & BASE STYLES */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: "Segoe UI", Tahoma, sans-serif;
+  }
+  
+  body {
+    background-color: #2d2d2d; /* Dark background */
+    color: #ddd;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+  
+  /* LINKS */
+  a {
+    color: #0093ff;
+    text-decoration: none;
+  }
+  a:hover {
+    text-decoration: underline;
+  }
+  
+  /* CONTAINER */
+  .container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+  }
+  
+  /* TOP BAR */
+  .top-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background-color: #1f1f1f;
+    padding: 10px 20px;
+    margin-bottom: 20px;
+  }
+  .top-bar h2 {
+    color: #fff;
+    font-size: 1.2rem;
+    font-weight: normal;
+  }
+  .top-bar .btn {
+    background-color: #0093ff;
+    color: #fff;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+  }
+  .top-bar .btn:hover {
+    background-color: #00a4ff;
+  }
+  
+  /* STATUS BAR */
+  .status-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    margin-bottom: 20px;
+  }
+  .status-bar div {
+    background-color: #1f1f1f;
+    padding: 10px 15px;
+    border-radius: 4px;
+  }
+  
+  /* PANELS */
+  .panel {
+    background-color: #3a3a3a;
+    border-radius: 6px;
+    padding: 15px;
+    margin-bottom: 20px;
+  }
+  .panel h3 {
+    margin-bottom: 10px;
+    font-weight: normal;
+    color: #fff;
+  }
+  
+  /* LINK LIST FOR MAIN CONTROLS */
+  .link-list a {
+    display: inline-block;
+    background-color: #444;
+    color: #ddd;
+    margin: 5px;
+    padding: 8px 12px;
+    border-radius: 4px;
+    text-decoration: none;
+    transition: background-color 0.2s ease;
+  }
+  .link-list a:hover {
+    background-color: #555;
+  }
+  
+  /* GENERIC BUTTONS */
+  .btn {
+    background-color: #0093ff;
+    color: #fff;
+    border: none;
+    padding: 10px 14px;
+    margin: 5px 0;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: background-color 0.2s ease;
+  }
+  .btn:hover {
+    background-color: #00a4ff;
+  }
+  
+  /* SCROLLBAR (OPTIONAL) */
+  ::-webkit-scrollbar {
+    width: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #2d2d2d;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #444;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #666;
+  }
+  
