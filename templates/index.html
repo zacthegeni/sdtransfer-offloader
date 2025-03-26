@@ -1,27 +1,68 @@
-<!-- templates/index.html -->
-<h2>SDTransfer</h2>
-<p id="status">Loading...</p>
-<p>Free Space: {{ space }}</p>
-<p>CPU Usage: {{ cpu }}%</p>
-<p>Memory Usage: {{ mem }}%</p>
-<a href="/wifi">Wi-Fi Settings</a><br>
-<a href="/notifications">Email Notifications Config</a><br>
-<a href="/logs">View Logs</a><br>
-<a href="/diagnostics">Diagnostics</a><br>
-<a href="/backup_config">Backup Config</a><br>
-<a href="/update_system">Update System</a><br>
-<a href="/run/upload">Upload Now</a><br>
-<a href="/run/offload">Offload Now</a><br>
-<a href="/run/retry">Retry Offload</a><br>
-<a href="/run/eject">Eject SD Card</a><br>
-<a href="/run/reboot">Reboot Pi</a><br>
-<a href="/run/shutdown">Shutdown Pi</a>
-<script>
-function pollStatus() {
-  fetch('/status', {credentials: 'include'})
-    .then(r => r.json())
-    .then(d => { document.getElementById('status').innerText = d.free_space; });
-}
-setInterval(pollStatus, 10000);
-window.onload = pollStatus;
-</script>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>SDTransfer Offloader</title>
+  <!-- Link to our new style.css -->
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- TOP BAR -->
+  <div class="top-bar">
+    <h2>SDTransfer Offloader</h2>
+    <!-- Example button in the top bar; change or remove if desired -->
+    <button class="btn" onclick="window.location.href='/run/reboot'">Reboot Pi</button>
+  </div>
+
+  <!-- MAIN CONTAINER -->
+  <div class="container">
+
+    <!-- STATUS BAR (showing free space, CPU, memory) -->
+    <div class="status-bar">
+      <div>
+        <p id="status">Loading...</p>
+      </div>
+      <div>
+        <p>Free Space: {{ space }}</p>
+      </div>
+      <div>
+        <p>CPU Usage: {{ cpu }}%</p>
+      </div>
+      <div>
+        <p>Memory Usage: {{ mem }}%</p>
+      </div>
+    </div>
+
+    <!-- CONTROLS PANEL -->
+    <div class="panel">
+      <h3>Main Controls</h3>
+      <div class="link-list">
+        <a href="/wifi">Wi-Fi Settings</a>
+        <a href="/notifications">Email Notifications</a>
+        <a href="/logs">View Logs</a>
+        <a href="/diagnostics">Diagnostics</a>
+        <a href="/backup_config">Backup Config</a>
+        <a href="/update_system">Update System</a>
+        <a href="/run/upload">Upload Now</a>
+        <a href="/run/offload">Offload Now</a>
+        <a href="/run/retry">Retry Offload</a>
+        <a href="/run/eject">Eject SD Card</a>
+        <a href="/run/shutdown">Shutdown Pi</a>
+      </div>
+    </div>
+
+  </div> <!-- .container -->
+
+  <script>
+    function pollStatus() {
+      fetch('/status', {credentials: 'include'})
+        .then(r => r.json())
+        .then(d => { document.getElementById('status').innerText = d.free_space; });
+    }
+    setInterval(pollStatus, 10000);
+    window.onload = pollStatus;
+  </script>
+
+</body>
+</html>
