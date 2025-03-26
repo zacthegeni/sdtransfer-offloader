@@ -3,66 +3,63 @@
 <head>
   <meta charset="UTF-8" />
   <title>SDTransfer Offloader</title>
-  <!-- Link to our new style.css -->
   <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha512-p+1vG0+owjT5y8k+9v8g4B+p1tXUJcN/h8H8L+Y9i7Q76fDwPjdFTOi45q6p0bz6N28+7+1IhPzf3c+3aw9P5Q==" crossorigin="anonymous" referrerpolicy="no-referrer" />
 </head>
 <body>
+  <header class="navbar">
+    <div class="navbar-title"><i class="fa fa-satellite-dish"></i> SDTransfer Offloader</div>
+    <nav class="navbar-links">
+      <a href="/wifi"><i class="fa fa-wifi"></i> Wi-Fi</a>
+      <a href="/notifications"><i class="fa fa-envelope"></i> Email</a>
+      <a href="/logs"><i class="fa fa-file-alt"></i> Logs</a>
+      <a href="/diagnostics"><i class="fa fa-tachometer-alt"></i> Diagnostics</a>
+      <a href="/backup_config"><i class="fa fa-save"></i> Backup</a>
+      <a href="/update_system"><i class="fa fa-sync-alt"></i> Update</a>
+    </nav>
+  </header>
 
-  <!-- TOP BAR -->
-  <div class="top-bar">
-    <h2>SDTransfer Offloader</h2>
-    <!-- Example button in the top bar; change or remove if desired -->
-    <button class="btn" onclick="window.location.href='/run/reboot'">Reboot Pi</button>
-  </div>
-
-  <!-- MAIN CONTAINER -->
   <div class="container">
-
-    <!-- STATUS BAR (showing free space, CPU, memory) -->
     <div class="status-bar">
-      <div>
-        <p id="status">Loading...</p>
+      <div class="status-item">
+        <h4>Free Space</h4>
+        <p id="status">{{ space }}</p>
       </div>
-      <div>
-        <p>Free Space: {{ space }}</p>
+      <div class="status-item">
+        <h4>CPU Usage</h4>
+        <p><i class="fa fa-microchip"></i> {{ cpu }}%</p>
       </div>
-      <div>
-        <p>CPU Usage: {{ cpu }}%</p>
-      </div>
-      <div>
-        <p>Memory Usage: {{ mem }}%</p>
+      <div class="status-item">
+        <h4>Memory Usage</h4>
+        <p><i class="fa fa-memory"></i> {{ mem }}%</p>
       </div>
     </div>
 
-    <!-- CONTROLS PANEL -->
     <div class="panel">
       <h3>Main Controls</h3>
-      <div class="link-list">
-        <a href="/wifi">Wi-Fi Settings</a>
-        <a href="/notifications">Email Notifications</a>
-        <a href="/logs">View Logs</a>
-        <a href="/diagnostics">Diagnostics</a>
-        <a href="/backup_config">Backup Config</a>
-        <a href="/update_system">Update System</a>
-        <a href="/run/upload">Upload Now</a>
-        <a href="/run/offload">Offload Now</a>
-        <a href="/run/retry">Retry Offload</a>
-        <a href="/run/eject">Eject SD Card</a>
-        <a href="/run/shutdown">Shutdown Pi</a>
+      <div class="button-group">
+        <button class="upload-btn" onclick="location.href='/run/upload'"><span class="icon"><i class="fa fa-upload"></i></span></button>
+        <button class="btn" onclick="location.href='/run/offload'"><span><i class="fa fa-download"></i> Offload</span></button>
+        <button class="btn" onclick="location.href='/run/retry'"><span><i class="fa fa-redo"></i> Retry</span></button>
+        <button class="btn" onclick="location.href='/run/eject'"><span><i class="fa fa-eject"></i> Eject</span></button>
+        <button class="btn" onclick="location.href='/run/reboot'"><span><i class="fa fa-sync-alt"></i> Reboot</span></button>
+        <button class="btn" onclick="location.href='/run/shutdown'"><span><i class="fa fa-power-off"></i> Shutdown</span></button>
       </div>
     </div>
+  </div>
 
-  </div> <!-- .container -->
+  <footer class="footer">
+    <p>&copy; 2023 SDTransfer Offloader</p>
+  </footer>
 
   <script>
     function pollStatus() {
       fetch('/status', {credentials: 'include'})
-        .then(r => r.json())
-        .then(d => { document.getElementById('status').innerText = d.free_space; });
+        .then(response => response.json())
+        .then(data => { document.getElementById('status').innerText = data.free_space; });
     }
     setInterval(pollStatus, 10000);
     window.onload = pollStatus;
   </script>
-
 </body>
 </html>
