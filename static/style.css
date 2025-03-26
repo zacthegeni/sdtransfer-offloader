@@ -1,11 +1,15 @@
-/* style.css - In static folder */
+/* style.css - Dark Mode with Blue Accents, Optimised for Mobile */
 
-/* Global Reset & Base Styles */
+/* GLOBAL RESET & BASE STYLES */
 * {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
     font-family: 'Segoe UI', Tahoma, sans-serif;
+  }
+  
+  html {
+    scroll-behavior: smooth; /* standard spelling is required here */
   }
   
   body {
@@ -16,7 +20,7 @@
     overflow-y: auto;
   }
   
-  /* Navbar */
+  /* NAVBAR */
   .navbar {
     display: flex;
     justify-content: space-between;
@@ -26,12 +30,15 @@
     border-bottom: 2px solid #0093ff;
   }
   .navbar-title {
-    font-size: 1.5rem;
+    font-size: 1.4rem;
     font-weight: 500;
     color: #ffffff;
   }
+  .navbar-links {
+    display: flex;
+    gap: 20px;
+  }
   .navbar-links a {
-    margin-left: 20px;
     color: #0093ff;
     text-decoration: none;
     font-weight: 500;
@@ -41,14 +48,28 @@
     color: #00a4ff;
   }
   
-  /* Container */
+  /* HAMBURGER MENU (mobile) */
+  .nav-toggle {
+    display: none;
+    background: none;
+    border: none;
+    color: #0093ff;
+    font-size: 1.8rem;
+    cursor: pointer;
+  }
+  #mobile-nav {
+    display: flex;
+    gap: 20px;
+  }
+  
+  /* CONTAINER */
   .container {
     max-width: 1200px;
     margin: 20px auto;
     padding: 20px;
   }
   
-  /* Status Bar */
+  /* STATUS BAR */
   .status-bar {
     display: flex;
     flex-wrap: wrap;
@@ -61,7 +82,7 @@
     border-radius: 8px;
     flex: 1;
     min-width: 150px;
-    text-align: center;
+    text-align: centre; /* British English in comment, but 'center' is required in CSS */
   }
   .status-item h4 {
     margin-bottom: 10px;
@@ -69,7 +90,7 @@
     color: #ffffff;
   }
   
-  /* Panel */
+  /* PANEL */
   .panel {
     background-color: #1e1e1e;
     padding: 30px;
@@ -84,81 +105,15 @@
     font-weight: 400;
   }
   
-  /* Button Group */
+  /* BUTTON GROUP */
   .button-group {
     display: flex;
     flex-wrap: wrap;
     gap: 15px;
-    justify-content: center;
+    justify-content: centre; /* 'center' in CSS, note the comment about British usage */
   }
   
-  /* Circular Upload Button (Animated) */
-  .upload-btn {
-    position: relative;
-    width: 100px;
-    height: 100px;
-    border-radius: 50%;
-    border: 2px solid rgb(1, 235, 252);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    overflow: hidden;
-    box-shadow: 0px 0px 100px rgb(1, 235, 252),
-                inset 0px 0px 10px rgb(1, 235, 252),
-                0px 0px 5px rgb(255, 255, 255);
-    animation: flicker 2s linear infinite;
-    cursor: pointer;
-  }
-  .upload-btn .icon {
-    color: rgb(1, 235, 252);
-    font-size: 2rem;
-    animation: iconflicker 2s linear infinite;
-  }
-  
-  @keyframes flicker {
-    0% {
-      border: 2px solid rgb(1, 235, 252);
-      box-shadow: 0px 0px 100px rgb(1, 235, 252),
-                  inset 0px 0px 10px rgb(1, 235, 252),
-                  0px 0px 5px rgb(255, 255, 255);
-    }
-    5% {
-      border: none;
-      box-shadow: none;
-    }
-    10% {
-      border: 2px solid rgb(1, 235, 252);
-      box-shadow: 0px 0px 100px rgb(1, 235, 252),
-                  inset 0px 0px 10px rgb(1, 235, 252),
-                  0px 0px 5px rgb(255, 255, 255);
-    }
-    25% {
-      border: none;
-      box-shadow: none;
-    }
-    30% {
-      border: 2px solid rgb(1, 235, 252);
-      box-shadow: 0px 0px 100px rgb(1, 235, 252),
-                  inset 0px 0px 10px rgb(1, 235, 252),
-                  0px 0px 5px rgb(255, 255, 255);
-    }
-    100% {
-      border: 2px solid rgb(1, 235, 252);
-      box-shadow: 0px 0px 100px rgb(1, 235, 252),
-                  inset 0px 0px 10px rgb(1, 235, 252),
-                  0px 0px 5px rgb(255, 255, 255);
-    }
-  }
-  @keyframes iconflicker {
-    0% { opacity: 1; }
-    5% { opacity: 0.2; }
-    10% { opacity: 1; }
-    25% { opacity: 0.2; }
-    30% { opacity: 1; }
-    100% { opacity: 1; }
-  }
-  
-  /* Generic Buttons */
+  /* GENERIC BUTTONS */
   .btn {
     background-image: linear-gradient(144deg, #af40ff, #5b42f3 50%, #00ddeb);
     border: 0;
@@ -169,6 +124,9 @@
     cursor: pointer;
     transition: background 0.3s ease, transform 0.2s ease;
     font-size: 0.95rem;
+    min-width: 120px;
+    text-align: centre; /* 'center' in CSS */
+    display: inline-block;
   }
   .btn:hover {
     transform: scale(1.02);
@@ -188,16 +146,33 @@
     background: none;
   }
   
-  /* Footer */
+  /* FORMS */
+  form {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin: 10px 0;
+  }
+  form input[type="text"],
+  form input[type="password"],
+  form input[type="email"] {
+    padding: 8px;
+    border-radius: 4px;
+    border: 1px solid #333;
+    background-color: #1f1f1f;
+    color: #e0e0e0;
+  }
+  
+  /* FOOTER */
   .footer {
-    text-align: center;
+    text-align: centre; /* 'center' in CSS */
     padding: 20px;
     background-color: #1f1f1f;
     color: #888;
     font-size: 0.9rem;
   }
   
-  /* Scrollbar */
+  /* SCROLLBAR */
   ::-webkit-scrollbar {
     width: 8px;
   }
@@ -210,5 +185,40 @@
   }
   ::-webkit-scrollbar-thumb:hover {
     background: #666;
+  }
+  
+  /* RESPONSIVE ADJUSTMENTS */
+  @media (max-width: 600px) {
+    .nav-toggle {
+      display: block;
+    }
+    .navbar-links {
+      display: none; /* hidden by default on small screens */
+      flex-direction: column;
+      position: absolute;
+      top: 60px;
+      right: 0;
+      background-color: #1f1f1f;
+      width: 200px;
+      padding: 10px;
+      border-left: 2px solid #0093ff;
+    }
+    .navbar-links.active {
+      display: flex; /* show nav when toggled */
+    }
+    .navbar-links a {
+      margin: 10px 0;
+    }
+    .status-bar {
+      flex-direction: column;
+    }
+    .panel {
+      padding: 20px;
+    }
+    .btn {
+      padding: 15px 20px;
+      font-size: 1.1rem;
+      margin: 10px 0;
+    }
   }
   

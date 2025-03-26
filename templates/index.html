@@ -1,79 +1,104 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <title>SDTransfer Offloader</title>
-  <!-- Use Flask's url_for to load style.css from the static folder -->
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-  <!-- Font Awesome for icons -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha512-p+1vG0+owjT5y8k+9v8g4B+p1tXUJcN/h8H8L+Y9i7Q76fDwPjdFTOi45q6p0bz6N28+7+1IhPzf3c+3aw9P5Q==" crossorigin="anonymous" referrerpolicy="no-referrer" />
-</head>
-<body>
-  <!-- NAVBAR -->
-  <header class="navbar">
-    <div class="navbar-title"><i class="fa fa-satellite-dish"></i> SDTransfer Offloader</div>
-    <nav class="navbar-links">
-      <a href="/wifi"><i class="fa fa-wifi"></i> Wi-Fi</a>
-      <a href="/notifications"><i class="fa fa-envelope"></i> Email</a>
-      <a href="/logs"><i class="fa fa-file-alt"></i> Logs</a>
-      <a href="/diagnostics"><i class="fa fa-tachometer-alt"></i> Diagnostics</a>
-      <a href="/backup_config"><i class="fa fa-save"></i> Backup</a>
-      <a href="/update_system"><i class="fa fa-sync-alt"></i> Update</a>
-    </nav>
-  </header>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SDTransfer Offloader - Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet"
+          href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+          integrity="sha512-p+1vG0+owjT5y8k+9v8g4B+p1tXUJcN/h8H8L+Y9i7Q76fDwPjdFTOi45q6p0bz6N28+7+1IhPzf3c+3aw9P5Q=="
+          crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <script>
+      // Toggle mobile navigation
+      function toggleNav() {
+        const nav = document.getElementById("mobile-nav");
+        nav.classList.toggle("active");
+      }
+    </script>
+  </head>
+  <body>
+    <!-- NAVBAR -->
+    <header class="navbar">
+      <div class="navbar-title">
+        <i class="fa fa-satellite-dish"></i> SDTransfer Offloader
+      </div>
+      <button class="nav-toggle" onclick="toggleNav()">
+        <i class="fa fa-bars"></i>
+      </button>
+      <nav id="mobile-nav" class="navbar-links">
+        <a href="/"><i class="fa fa-home"></i> Dashboard</a>
+        <a href="/wifi"><i class="fa fa-wifi"></i> Wi‑Fi</a>
+        <a href="/notifications"><i class="fa fa-envelope"></i> Email</a>
+        <a href="/logs"><i class="fa fa-file-alt"></i> Logs</a>
+        <a href="/diagnostics"><i class="fa fa-tachometer-alt"></i> Diagnostics</a>
+        <a href="/backup_config"><i class="fa fa-save"></i> Backup</a>
+        <a href="/update_system"><i class="fa fa-sync-alt"></i> Update</a>
+      </nav>
+    </header>
 
-  <!-- MAIN CONTAINER -->
-  <div class="container">
-    <!-- STATUS BAR -->
-    <div class="status-bar">
-      <div class="status-item">
-        <h4>Free Space</h4>
-        <p id="status">{{ space }}</p>
+    <!-- MAIN CONTENT -->
+    <div class="container">
+      <h2>Dashboard</h2>
+
+      <!-- STATUS BAR -->
+      <div class="status-bar">
+        <div class="status-item">
+          <h4>Free Space</h4>
+          <p id="status">{{ space }}</p>
+        </div>
+        <div class="status-item">
+          <h4>CPU Usage</h4>
+          <p><i class="fa fa-microchip"></i> {{ cpu }}%</p>
+        </div>
+        <div class="status-item">
+          <h4>Memory Usage</h4>
+          <p><i class="fa fa-memory"></i> {{ mem }}%</p>
+        </div>
       </div>
-      <div class="status-item">
-        <h4>CPU Usage</h4>
-        <p><i class="fa fa-microchip"></i> {{ cpu }}%</p>
-      </div>
-      <div class="status-item">
-        <h4>Memory Usage</h4>
-        <p><i class="fa fa-memory"></i> {{ mem }}%</p>
+
+      <!-- ACTIONS PANEL -->
+      <div class="panel">
+        <h3>Controls</h3>
+        <div class="button-group">
+          <button class="btn" onclick="location.href='/run/upload'">
+            <i class="fa fa-upload"></i> Upload
+          </button>
+          <button class="btn" onclick="location.href='/run/offload'">
+            <i class="fa fa-download"></i> Offload
+          </button>
+          <button class="btn" onclick="location.href='/run/retry'">
+            <i class="fa fa-redo"></i> Retry
+          </button>
+          <button class="btn" onclick="location.href='/run/eject'">
+            <i class="fa fa-eject"></i> Eject
+          </button>
+          <button class="btn" onclick="location.href='/run/reboot'">
+            <i class="fa fa-sync-alt"></i> Reboot
+          </button>
+          <button class="btn" onclick="location.href='/run/shutdown'">
+            <i class="fa fa-power-off"></i> Shutdown
+          </button>
+        </div>
       </div>
     </div>
 
-    <!-- CONTROL PANEL -->
-    <div class="panel">
-      <h3>Main Controls</h3>
-      <div class="button-group">
-        <!-- Circular Upload Button -->
-        <button class="upload-btn" onclick="location.href='/run/upload'">
-          <span class="icon"><i class="fa fa-upload"></i></span>
-        </button>
+    <!-- FOOTER -->
+    <footer class="footer">
+      <p>&copy; 2025 SDTransfer Offloader</p>
+    </footer>
 
-        <!-- Other Buttons -->
-        <button class="btn" onclick="location.href='/run/offload'"><span><i class="fa fa-download"></i> Offload</span></button>
-        <button class="btn" onclick="location.href='/run/retry'"><span><i class="fa fa-redo"></i> Retry</span></button>
-        <button class="btn" onclick="location.href='/run/eject'"><span><i class="fa fa-eject"></i> Eject</span></button>
-        <button class="btn" onclick="location.href='/run/reboot'"><span><i class="fa fa-sync-alt"></i> Reboot</span></button>
-        <button class="btn" onclick="location.href='/run/shutdown'"><span><i class="fa fa-power-off"></i> Shutdown</span></button>
-      </div>
-    </div>
-  </div>
-
-  <!-- FOOTER -->
-  <footer class="footer">
-    <p>&copy; 2023 SDTransfer Offloader</p>
-  </footer>
-
-  <script>
-    function pollStatus() {
-      fetch('/status', {credentials: 'include'})
-        .then(response => response.json())
-        .then(data => {
-          document.getElementById('status').innerText = data.free_space;
-        });
-    }
-    setInterval(pollStatus, 10000);
-    window.onload = pollStatus;
-  </script>
-</body>
+    <script>
+      function pollStatus() {
+        fetch('/status', {credentials: 'include'})
+          .then(response => response.json())
+          .then(data => {
+            document.getElementById('status').innerText = data.free_space;
+          });
+      }
+      setInterval(pollStatus, 10000);
+      window.onload = pollStatus;
+    </script>
+  </body>
 </html>

@@ -152,6 +152,6 @@ def run_action(action):
         except Exception as e:
             print(f"Failed to run action {action}: {e}")
     return redirect('/')
-    
+
 if __name__ == '__main__':
     app.run('0.0.0.0', port=5000)
