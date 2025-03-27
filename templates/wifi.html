@@ -5,15 +5,22 @@
   <div class="panel">
     <form method="post">
       <label for="ssid">Available Networks:</label>
-      <select id="ssid" name="ssid">
-        {% for s in ssids %}
-          <option value="{{ s }}">{{ s }}</option>
-        {% endfor %}
+      <select id="ssid" name="ssid" class="wifi-select">
+        {% if ssids %}
+          {% for s in ssids %}
+            <option value="{{ s }}">{{ s }}</option>
+          {% endfor %}
+        {% else %}
+          <option value="">(No networks scanned or scanning not implemented)</option>
+        {% endif %}
       </select>
+
       <p>Or enter a custom SSID (for hidden networks):</p>
       <input type="text" placeholder="Hidden SSID (optional)" name="custom_ssid">
+
       <label for="psk">Password:</label>
       <input type="password" id="psk" name="psk" required>
+
       <input class="btn" type="submit" value="Connect">
     </form>
   </div>

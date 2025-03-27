@@ -4,89 +4,30 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>{% block title %}SDTransfer Offloader{% endblock %}</title>
-    <!-- Inline CSS for a guaranteed dark theme & big button nav -->
-    <style>
-      /* Reset & Base */
-      * {
-        margin: 0;
-        padding: 0;
-        box-sizing: border-box;
-      }
-      body {
-        background-color: #000; /* black background */
-        color: #fff;           /* white text */
-        font-family: Arial, sans-serif;
-        margin: 0;
-      }
-      /* Navbar */
-      .navbar {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        background-color: #222;  /* dark grey */
-        padding: 15px;
-      }
-      .navbar-title {
-        font-size: 1.8rem;
-        margin-bottom: 15px;
-      }
-      /* Nav Buttons */
-      .nav-buttons {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 10px;
-        justify-content: center;
-        width: 100%;
-      }
-      .nav-buttons button {
-        background-color: #0093ff; 
-        color: #fff;
-        padding: 15px 20px;
-        font-size: 1.1rem;
-        border: none;
-        border-radius: 8px;
-        cursor: pointer;
-        transition: background-color 0.3s ease;
-      }
-      .nav-buttons button:hover {
-        background-color: #00a4ff;
-      }
-      /* Responsive: full-width buttons on small screens */
-      @media (max-width: 600px) {
-        .nav-buttons button {
-          flex: 1 1 100%;
-          text-align: center;
-          font-size: 1.2rem;
-        }
-      }
-      /* Container */
-      .container {
-        max-width: 1200px;
-        margin: 20px auto;
-        padding: 20px;
-      }
-      /* Footer */
-      .footer {
-        text-align: center;
-        padding: 10px;
-        background-color: #222;
-        color: #888;
-      }
-    </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet"
+          href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+          integrity="sha512-p+1vG0+owjT5y8k+9v8g4B+p1tXUJcN/h8H8L+Y9i7Q76fDwPjdFTOi45q6p0bz6N28+7+1IhPzf3c+3aw9P5Q=="
+          crossorigin="anonymous" referrerpolicy="no-referrer" />
   </head>
   <body>
     <!-- NAVBAR -->
     <header class="navbar">
-      <div class="navbar-title">SDTransfer Offloader</div>
-      <div class="nav-buttons">
-        <button onclick="location.href='/'"><strong>Dashboard</strong></button>
-        <button onclick="location.href='/wifi'"><strong>Wi-Fi</strong></button>
-        <button onclick="location.href='/notifications'"><strong>Email</strong></button>
-        <button onclick="location.href='/logs'"><strong>Logs</strong></button>
-        <button onclick="location.href='/diagnostics'"><strong>Diagnostics</strong></button>
-        <button onclick="location.href='/backup_config'"><strong>Backup</strong></button>
-        <button onclick="location.href='/update_system'"><strong>Update</strong></button>
+      <div class="navbar-title">
+        <i class="fa fa-satellite-dish"></i> SDTransfer Offloader
       </div>
+      <nav class="navbar-links">
+        <a href="/"><i class="fa fa-home"></i> Dashboard</a>
+        <a href="/wifi"><i class="fa fa-wifi"></i> Wi‑Fi</a>
+        <a href="/notifications"><i class="fa fa-envelope"></i> Email</a>
+        <a href="/logs"><i class="fa fa-file-alt"></i> Logs</a>
+        <a href="/diagnostics"><i class="fa fa-tachometer-alt"></i> Diagnostics</a>
+        <a href="/backup_config"><i class="fa fa-save"></i> Backup</a>
+        <a href="/update_system"><i class="fa fa-sync-alt"></i> Update</a>
+        <!-- NEW Credentials Link -->
+        <a href="/credentials"><i class="fa fa-user-shield"></i> Credentials</a>
+      </nav>
     </header>
 
     <!-- MAIN CONTENT -->

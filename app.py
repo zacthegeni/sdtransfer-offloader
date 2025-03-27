@@ -7,7 +7,6 @@ load_dotenv('.env')
 app = Flask(__name__)
 auth = HTTPBasicAuth()
 
-# Updated authentication function:
 @auth.verify_password
 def verify_password(username, password):
     admin_username = os.getenv("ADMIN_USERNAME", "")
@@ -15,7 +14,7 @@ def verify_password(username, password):
     # If no credentials are set, allow access.
     if not admin_username or not admin_password:
         return True
-    return username == admin_username and password == admin_password
+    return (username == admin_username) and (password == admin_password)
 
 UPLOAD_LOG = os.getenv("UPLOAD_LOG", "/home/pi/rclone.log")
 OFFLOAD_LOG = os.getenv("OFFLOAD_LOG", "/home/pi/offload.log")
@@ -87,7 +86,7 @@ def logs():
 def wifi():
     if request.method == 'POST':
         ssid = request.form.get('ssid') or request.form.get('custom_ssid')
-        psk = request.form['psk']
+        psk = request.form.get('psk')
         config = f'\nnetwork={{\n ssid="{ssid}"\n psk="{psk}"\n}}\n'
         try:
             with open('/etc/wpa_supplicant/wpa_supplicant.conf', 'a') as f:
@@ -96,8 +95,7 @@ def wifi():
         except Exception as e:
             print(f"Wi-Fi config failed: {e}")
         return redirect(url_for('wifi'))
-    # (Optionally, add your SSID scanning code here.)
-    return render_template('wifi.html', ssids=[])
+    return render_template('wifi.html')
 
 @app.route('/notifications', methods=['GET', 'POST'])
 @auth.login_required
@@ -154,24 +152,53 @@ def run_action(action):
             print(f"Failed to run action {action}: {e}")
     return redirect('/')
 
-# New Route: Credentials Setup
+# Returns JSON indicating if credentials are set or not
+@app.route('/check_creds')
+def check_creds():
+    admin_username = os.getenv("ADMIN_USERNAME", "")
+    admin_password = os.getenv("ADMIN_PASSWORD", "")
+    if not admin_username or not admin_password:
+        return jsonify({"creds_set": False})
+    return jsonify({"creds_set": True})
+
+# Credentials route - if creds exist, require old username/password to change
 @app.route('/credentials', methods=['GET', 'POST'])
 def credentials():
-    current_username = os.getenv("ADMIN_USERNAME", "")
+    admin_username = os.getenv("ADMIN_USERNAME", "")
+    admin_password = os.getenv("ADMIN_PASSWORD", "")
+    
     if request.method == "POST":
-        username = request.form.get("username")
-        password = request.form.get("password")
+        # If credentials already exist, user must provide old credentials
+        if admin_username and admin_password:
+            old_user = request.form.get("old_username")
+            old_pass = request.form.get("old_password")
+            if old_user != admin_username or old_pass != admin_password:
+                # Old credentials don't match
+                return render_template('credentials.html', 
+                                       error="Old credentials do not match!", 
+                                       admin_exists=True)
+        
+        # Either no creds exist or old creds matched, so set new creds
+        new_user = request.form.get("new_username")
+        new_pass = request.form.get("new_password")
+        
         env_content = (
-            f"ADMIN_USERNAME={username}\n"
-            f"ADMIN_PASSWORD={password}\n"
+            f"ADMIN_USERNAME={new_user}\n"
+            f"ADMIN_PASSWORD={new_pass}\n"
             f"UPLOAD_LOG=/home/pi/rclone.log\n"
             f"OFFLOAD_LOG=/home/pi/offload.log\n"
         )
         with open(".env", "w") as f:
             f.write(env_content)
         load_dotenv(".env")
+        
         return redirect(url_for("index"))
-    return render_template("credentials.html", current_username=current_username)
+    
+    # GET request
+    admin_exists = bool(admin_username and admin_password)
+    return render_template('credentials.html', 
+                           admin_exists=admin_exists,
+                           error="")
 
 if __name__ == '__main__':
     app.run('0.0.0.0', port=5000)

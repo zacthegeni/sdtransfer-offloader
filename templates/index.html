@@ -2,7 +2,7 @@
 {% block title %}Dashboard - SDTransfer Offloader{% endblock %}
 {% block content %}
   <h2>Dashboard</h2>
-
+  
   <!-- STATUS BAR -->
   <div class="status-bar">
     <div class="status-item">
@@ -23,40 +23,26 @@
   <div class="panel">
     <h3>Main Controls</h3>
     <div class="button-group">
-      <!-- Big Upload Button -->
-      <div class="upload-section">
-        <button class="upload-btn" onclick="location.href='/run/upload'">
-          <i class="fa fa-cloud-upload-alt"></i> Upload to Google Drive
-        </button>
-        <p class="help-text">
-          Click this button to upload files from your SD card to your Google Drive.
-          Make sure your rclone remote (named "gdrive") is properly configured.
-        </p>
-      </div>
-      <!-- Other Buttons -->
-      <button class="btn" onclick="location.href='/run/offload'">
-        <i class="fa fa-download"></i> Offload
+      <button class="upload-btn" onclick="location.href='/run/upload'">
+        Upload to Google Drive
       </button>
-      <button class="btn" onclick="location.href='/run/retry'">
-        <i class="fa fa-redo"></i> Retry
-      </button>
-      <button class="btn" onclick="location.href='/run/eject'">
-        <i class="fa fa-eject"></i> Eject SD Card
-      </button>
-      <button class="btn" onclick="location.href='/run/reboot'">
-        <i class="fa fa-sync-alt"></i> Reboot Pi
-      </button>
-      <button class="btn" onclick="location.href='/run/shutdown'">
-        <i class="fa fa-power-off"></i> Shutdown Pi
-      </button>
+      <p class="help-text">
+        Click this button to upload files from your SD card to Google Drive.
+        Make sure your rclone remote (named "gdrive") is properly configured.
+      </p>
+      <button class="btn" onclick="location.href='/run/offload'">Offload</button>
+      <button class="btn" onclick="location.href='/run/retry'">Retry</button>
+      <button class="btn" onclick="location.href='/run/eject'">Eject SD Card</button>
+      <button class="btn" onclick="location.href='/run/reboot'">Reboot Pi</button>
+      <button class="btn" onclick="location.href='/run/shutdown'">Shutdown Pi</button>
     </div>
   </div>
 
-  <!-- SETTINGS & HELP SECTION -->
+  <!-- SETTINGS & HELP -->
   <div class="panel">
     <h3>Settings &amp; Help</h3>
     <p>
-      <strong>Upload Settings:</strong> Adjust upload parameters (e.g. file retention, upload frequency)
+      <strong>Upload Settings:</strong> Adjust upload parameters (e.g., file retention, upload frequency)
       by editing the configuration files or via the upcoming settings interface.
     </p>
     <p>
@@ -66,14 +52,50 @@
   </div>
 
   <script>
+    // Check free space every 10 seconds
     function pollStatus() {
       fetch('/status', {credentials: 'include'})
-        .then(response => response.json())
-        .then(data => {
-          document.getElementById('status').innerText = data.free_space;
+        .then(r => r.json())
+        .then(d => {
+          document.getElementById('status').innerText = d.free_space;
         });
     }
     setInterval(pollStatus, 10000);
     window.onload = pollStatus;
+
+    // Prompt for new creds if not set
+    async function checkCredentials() {
+      let resp = await fetch('/check_creds');
+      let data = await resp.json();
+      if (!data.creds_set) {
+        // Credentials not set, ask user for new username/password
+        let newUser = prompt("No credentials are set yet. Please enter a new admin username:");
+        if (!newUser) return;
+        let newPass = prompt("Enter a new admin password:");
+        if (!newPass) return;
+        
+        // Submit them to /credentials
+        let formData = new FormData();
+        // On first set, no old credentials
+        formData.append('old_username', '');
+        formData.append('old_password', '');
+        formData.append('new_username', newUser);
+        formData.append('new_password', newPass);
+        
+        let res = await fetch('/credentials', {
+          method: 'POST',
+          body: formData
+        });
+        if (res.ok) {
+          alert("Credentials saved. Reloading...");
+          window.location.reload();
+        } else {
+          alert("Failed to set credentials. Please try again.");
+        }
+      }
+    }
+
+    // Also run checkCredentials after the page loads
+    window.addEventListener('load', checkCredentials);
   </script>
 {% endblock %}
