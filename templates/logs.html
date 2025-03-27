@@ -1,6 +1,54 @@
-<!-- templates/logs.html -->
-<h2>Upload Log</h2>
-<pre>{{ upload }}</pre>
-<h2>Offload Log</h2>
-<pre>{{ offload }}</pre>
-<a href="/">Back</a>
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Logs - SDTransfer Offloader</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script>
+      function toggleNav() {
+        const nav = document.getElementById("mobile-nav");
+        nav.classList.toggle("active");
+      }
+    </script>
+  </head>
+  <body>
+    <!-- NAVBAR -->
+    <header class="navbar">
+      <div class="navbar-title">
+        <i class="fa fa-satellite-dish"></i> SDTransfer Offloader
+      </div>
+      <button class="nav-toggle" onclick="toggleNav()">
+        <i class="fa fa-bars"></i>
+      </button>
+      <nav id="mobile-nav" class="navbar-links">
+        <a href="/"><i class="fa fa-home"></i> Dashboard</a>
+        <a href="/wifi"><i class="fa fa-wifi"></i> Wi‑Fi</a>
+        <a href="/notifications"><i class="fa fa-envelope"></i> Email</a>
+        <a href="/logs"><i class="fa fa-file-alt"></i> Logs</a>
+        <a href="/diagnostics"><i class="fa fa-tachometer-alt"></i> Diagnostics</a>
+        <a href="/backup_config"><i class="fa fa-save"></i> Backup</a>
+        <a href="/update_system"><i class="fa fa-sync-alt"></i> Update</a>
+      </nav>
+    </header>
+
+    <!-- MAIN CONTENT -->
+    <div class="container">
+      <h2>Logs</h2>
+      <div class="panel">
+        <h3>Upload Log</h3>
+        <pre>{{ upload }}</pre>
+      </div>
+      <div class="panel">
+        <h3>Offload Log</h3>
+        <pre>{{ offload }}</pre>
+      </div>
+      <a class="btn" href="/"><i class="fa fa-home"></i> Back to Dashboard</a>
+    </div>
+
+    <!-- FOOTER -->
+    <footer class="footer">
+      <p>&copy; 2025 SDTransfer Offloader</p>
+    </footer>
+  </body>
+</html>

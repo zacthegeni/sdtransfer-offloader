@@ -1,104 +1,79 @@
-<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>SDTransfer Offloader - Dashboard</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <!-- Font Awesome for icons -->
-    <link rel="stylesheet"
-          href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
-          integrity="sha512-p+1vG0+owjT5y8k+9v8g4B+p1tXUJcN/h8H8L+Y9i7Q76fDwPjdFTOi45q6p0bz6N28+7+1IhPzf3c+3aw9P5Q=="
-          crossorigin="anonymous" referrerpolicy="no-referrer" />
-    <script>
-      // Toggle mobile navigation
-      function toggleNav() {
-        const nav = document.getElementById("mobile-nav");
-        nav.classList.toggle("active");
-      }
-    </script>
-  </head>
-  <body>
-    <!-- NAVBAR -->
-    <header class="navbar">
-      <div class="navbar-title">
-        <i class="fa fa-satellite-dish"></i> SDTransfer Offloader
-      </div>
-      <button class="nav-toggle" onclick="toggleNav()">
-        <i class="fa fa-bars"></i>
-      </button>
-      <nav id="mobile-nav" class="navbar-links">
-        <a href="/"><i class="fa fa-home"></i> Dashboard</a>
-        <a href="/wifi"><i class="fa fa-wifi"></i> Wi‑Fi</a>
-        <a href="/notifications"><i class="fa fa-envelope"></i> Email</a>
-        <a href="/logs"><i class="fa fa-file-alt"></i> Logs</a>
-        <a href="/diagnostics"><i class="fa fa-tachometer-alt"></i> Diagnostics</a>
-        <a href="/backup_config"><i class="fa fa-save"></i> Backup</a>
-        <a href="/update_system"><i class="fa fa-sync-alt"></i> Update</a>
-      </nav>
-    </header>
+{% extends "base.html" %}
+{% block title %}Dashboard - SDTransfer Offloader{% endblock %}
+{% block content %}
+  <h2>Dashboard</h2>
 
-    <!-- MAIN CONTENT -->
-    <div class="container">
-      <h2>Dashboard</h2>
-
-      <!-- STATUS BAR -->
-      <div class="status-bar">
-        <div class="status-item">
-          <h4>Free Space</h4>
-          <p id="status">{{ space }}</p>
-        </div>
-        <div class="status-item">
-          <h4>CPU Usage</h4>
-          <p><i class="fa fa-microchip"></i> {{ cpu }}%</p>
-        </div>
-        <div class="status-item">
-          <h4>Memory Usage</h4>
-          <p><i class="fa fa-memory"></i> {{ mem }}%</p>
-        </div>
-      </div>
-
-      <!-- ACTIONS PANEL -->
-      <div class="panel">
-        <h3>Controls</h3>
-        <div class="button-group">
-          <button class="btn" onclick="location.href='/run/upload'">
-            <i class="fa fa-upload"></i> Upload
-          </button>
-          <button class="btn" onclick="location.href='/run/offload'">
-            <i class="fa fa-download"></i> Offload
-          </button>
-          <button class="btn" onclick="location.href='/run/retry'">
-            <i class="fa fa-redo"></i> Retry
-          </button>
-          <button class="btn" onclick="location.href='/run/eject'">
-            <i class="fa fa-eject"></i> Eject
-          </button>
-          <button class="btn" onclick="location.href='/run/reboot'">
-            <i class="fa fa-sync-alt"></i> Reboot
-          </button>
-          <button class="btn" onclick="location.href='/run/shutdown'">
-            <i class="fa fa-power-off"></i> Shutdown
-          </button>
-        </div>
-      </div>
+  <!-- STATUS BAR -->
+  <div class="status-bar">
+    <div class="status-item">
+      <h4>Free Space</h4>
+      <p id="status">{{ space }}</p>
     </div>
+    <div class="status-item">
+      <h4>CPU Usage</h4>
+      <p><i class="fa fa-microchip"></i> {{ cpu }}%</p>
+    </div>
+    <div class="status-item">
+      <h4>Memory Usage</h4>
+      <p><i class="fa fa-memory"></i> {{ mem }}%</p>
+    </div>
+  </div>
 
-    <!-- FOOTER -->
-    <footer class="footer">
-      <p>&copy; 2025 SDTransfer Offloader</p>
-    </footer>
+  <!-- MAIN CONTROLS PANEL -->
+  <div class="panel">
+    <h3>Main Controls</h3>
+    <div class="button-group">
+      <!-- Big Upload Button -->
+      <div class="upload-section">
+        <button class="upload-btn" onclick="location.href='/run/upload'">
+          <i class="fa fa-cloud-upload-alt"></i> Upload to Google Drive
+        </button>
+        <p class="help-text">
+          Click this button to upload files from your SD card to your Google Drive.
+          Make sure your rclone remote (named "gdrive") is properly configured.
+        </p>
+      </div>
+      <!-- Other Buttons -->
+      <button class="btn" onclick="location.href='/run/offload'">
+        <i class="fa fa-download"></i> Offload
+      </button>
+      <button class="btn" onclick="location.href='/run/retry'">
+        <i class="fa fa-redo"></i> Retry
+      </button>
+      <button class="btn" onclick="location.href='/run/eject'">
+        <i class="fa fa-eject"></i> Eject SD Card
+      </button>
+      <button class="btn" onclick="location.href='/run/reboot'">
+        <i class="fa fa-sync-alt"></i> Reboot Pi
+      </button>
+      <button class="btn" onclick="location.href='/run/shutdown'">
+        <i class="fa fa-power-off"></i> Shutdown Pi
+      </button>
+    </div>
+  </div>
 
-    <script>
-      function pollStatus() {
-        fetch('/status', {credentials: 'include'})
-          .then(response => response.json())
-          .then(data => {
-            document.getElementById('status').innerText = data.free_space;
-          });
-      }
-      setInterval(pollStatus, 10000);
-      window.onload = pollStatus;
-    </script>
-  </body>
-</html>
+  <!-- SETTINGS & HELP SECTION -->
+  <div class="panel">
+    <h3>Settings &amp; Help</h3>
+    <p>
+      <strong>Upload Settings:</strong> Adjust upload parameters (e.g. file retention, upload frequency)
+      by editing the configuration files or via the upcoming settings interface.
+    </p>
+    <p>
+      <strong>Help:</strong> For assistance configuring rclone and email notifications, please visit
+      the <a href="https://rclone.org/docs/" target="_blank">rclone documentation</a> or check our online help.
+    </p>
+  </div>
+
+  <script>
+    function pollStatus() {
+      fetch('/status', {credentials: 'include'})
+        .then(response => response.json())
+        .then(data => {
+          document.getElementById('status').innerText = data.free_space;
+        });
+    }
+    setInterval(pollStatus, 10000);
+    window.onload = pollStatus;
+  </script>
+{% endblock %}

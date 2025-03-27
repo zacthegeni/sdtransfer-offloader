@@ -1,11 +1,29 @@
-<!-- templates/notifications.html -->
-<h2>Email Notifications Configuration</h2>
-<form method="post">
-  SMTP Server: <input name="smtp_server" value="{{ config.smtp_server }}"><br>
-  SMTP Port: <input name="smtp_port" value="{{ config.smtp_port }}"><br>
-  SMTP Username: <input name="smtp_username" value="{{ config.smtp_username }}"><br>
-  SMTP Password: <input type="password" name="smtp_password" value="{{ config.smtp_password }}"><br>
-  Target Email (comma-separated): <input name="target_email" value="{{ config.target_email }}"><br>
-  <input type="submit" value="Save">
-</form>
-<a href="/">Back</a>
+{% extends "base.html" %}
+{% block title %}Email Notifications - SDTransfer Offloader{% endblock %}
+{% block content %}
+  <h2>Email Notifications Setup</h2>
+  <div class="panel">
+    <form method="post">
+      <p>Fill in the details below to set up email notifications. Leave blank if you don't wish to use them.</p>
+      <label for="smtp_server">SMTP Server:</label>
+      <input type="text" id="smtp_server" name="smtp_server" placeholder="e.g. smtp.gmail.com" value="{{ config.smtp_server }}">
+
+      <label for="smtp_port">SMTP Port:</label>
+      <input type="text" id="smtp_port" name="smtp_port" placeholder="e.g. 587" value="{{ config.smtp_port }}">
+
+      <label for="smtp_username">Email Username:</label>
+      <input type="text" id="smtp_username" name="smtp_username" placeholder="your email address" value="{{ config.smtp_username }}">
+
+      <label for="smtp_password">Email Password:</label>
+      <input type="password" id="smtp_password" name="smtp_password" placeholder="your email password" value="{{ config.smtp_password }}">
+
+      <label for="target_email">Recipient Email:</label>
+      <input type="text" id="target_email" name="target_email" placeholder="recipient email address" value="{{ config.target_email }}">
+
+      <input class="btn" type="submit" value="Save Settings">
+    </form>
+  </div>
+  <a class="btn" href="/">
+    <i class="fa fa-home"></i> Back to Dashboard
+  </a>
+{% endblock %}

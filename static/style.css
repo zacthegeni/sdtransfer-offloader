@@ -1,5 +1,3 @@
-/* style.css - Dark Mode with Blue Accents, Optimised for Mobile */
-
 /* GLOBAL RESET & BASE STYLES */
 * {
     margin: 0;
@@ -8,58 +6,61 @@
     font-family: 'Segoe UI', Tahoma, sans-serif;
   }
   
-  html {
-    scroll-behavior: smooth; /* standard spelling is required here */
-  }
-  
   body {
     background-color: #121212;
     color: #e0e0e0;
     line-height: 1.6;
     overflow-x: hidden;
-    overflow-y: auto;
   }
   
   /* NAVBAR */
   .navbar {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
     background-color: #1f1f1f;
-    padding: 15px 30px;
+    padding: 15px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
     border-bottom: 2px solid #0093ff;
   }
   .navbar-title {
-    font-size: 1.4rem;
-    font-weight: 500;
+    font-size: 1.5rem;
     color: #ffffff;
-  }
-  .navbar-links {
-    display: flex;
-    gap: 20px;
-  }
-  .navbar-links a {
-    color: #0093ff;
-    text-decoration: none;
-    font-weight: 500;
-    transition: color 0.2s ease;
-  }
-  .navbar-links a:hover {
-    color: #00a4ff;
+    margin-bottom: 10px;
   }
   
-  /* HAMBURGER MENU (mobile) */
-  .nav-toggle {
-    display: none;
-    background: none;
+  /* NAVIGATION BUTTONS */
+  .navbar-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: center;
+    width: 100%;
+  }
+  .nav-btn {
+    background-color: #0093ff;
+    color: #ffffff;
+    padding: 10px 15px;
+    border-radius: 5px;
     border: none;
-    color: #0093ff;
-    font-size: 1.8rem;
+    font-size: 1rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    transition: background 0.3s ease;
     cursor: pointer;
   }
-  #mobile-nav {
-    display: flex;
-    gap: 20px;
+  .nav-btn:hover {
+    background-color: #00a4ff;
+  }
+  
+  /* For small screens: make nav buttons full-width */
+  @media (max-width: 600px) {
+    .nav-btn {
+      flex: 1 1 100%;
+      text-align: center;
+      font-size: 1.1rem;
+      padding: 15px;
+    }
   }
   
   /* CONTAINER */
@@ -69,63 +70,42 @@
     padding: 20px;
   }
   
-  /* STATUS BAR */
-  .status-bar {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 20px;
-    margin-bottom: 30px;
-  }
-  .status-item {
+  /* FOOTER */
+  .footer {
+    text-align: center;
+    padding: 15px;
     background-color: #1f1f1f;
-    padding: 20px;
-    border-radius: 8px;
-    flex: 1;
-    min-width: 150px;
-    text-align: centre; /* British English in comment, but 'center' is required in CSS */
-  }
-  .status-item h4 {
-    margin-bottom: 10px;
-    font-size: 1.1rem;
-    color: #ffffff;
+    color: #888;
+    font-size: 0.9rem;
   }
   
-  /* PANEL */
+  /* EXAMPLE: PANEL STYLES */
   .panel {
     background-color: #1e1e1e;
     padding: 30px;
     border-radius: 10px;
-    box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
     margin-bottom: 30px;
   }
-  .panel h3 {
-    margin-bottom: 20px;
-    font-size: 1.3rem;
-    color: #ffffff;
-    font-weight: 400;
-  }
   
-  /* BUTTON GROUP */
+  /* EXAMPLE: BUTTON GROUP (for main content) */
   .button-group {
     display: flex;
     flex-wrap: wrap;
     gap: 15px;
-    justify-content: centre; /* 'center' in CSS, note the comment about British usage */
+    justify-content: center;
   }
-  
-  /* GENERIC BUTTONS */
   .btn {
     background-image: linear-gradient(144deg, #af40ff, #5b42f3 50%, #00ddeb);
-    border: 0;
+    border: none;
     border-radius: 8px;
     color: #ffffff;
     padding: 10px 14px;
-    margin: 5px 0;
     cursor: pointer;
     transition: background 0.3s ease, transform 0.2s ease;
     font-size: 0.95rem;
     min-width: 120px;
-    text-align: centre; /* 'center' in CSS */
+    text-align: center;
     display: inline-block;
   }
   .btn:hover {
@@ -134,91 +114,41 @@
   .btn:active {
     transform: scale(0.95);
   }
-  .btn span {
-    background-color: #05062d;
-    padding: 16px 24px;
-    border-radius: 6px;
-    display: block;
-    width: 100%;
-    transition: 300ms;
+  
+  /* BIG UPLOAD BUTTON (example styling for dashboard) */
+  .upload-btn {
+    background-image: linear-gradient(144deg, #af40ff, #5b42f3 50%, #00ddeb);
+    border: none;
+    border-radius: 50%;
+    color: #ffffff;
+    padding: 20px 40px;
+    font-size: 1.5rem;
+    cursor: pointer;
+    transition: transform 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
   }
-  .btn:hover span {
-    background: none;
+  .upload-btn:hover {
+    transform: scale(1.05);
   }
   
-  /* FORMS */
-  form {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    margin: 10px 0;
-  }
+  /* FORMS (Wi-Fi picker, etc.) */
+  form select,
   form input[type="text"],
-  form input[type="password"],
-  form input[type="email"] {
-    padding: 8px;
+  form input[type="password"] {
+    font-size: 1.05rem;
+    padding: 10px;
     border-radius: 4px;
     border: 1px solid #333;
     background-color: #1f1f1f;
     color: #e0e0e0;
+    margin-bottom: 10px;
+    width: 100%;
   }
-  
-  /* FOOTER */
-  .footer {
-    text-align: centre; /* 'center' in CSS */
-    padding: 20px;
-    background-color: #1f1f1f;
-    color: #888;
-    font-size: 0.9rem;
-  }
-  
-  /* SCROLLBAR */
-  ::-webkit-scrollbar {
-    width: 8px;
-  }
-  ::-webkit-scrollbar-track {
-    background: #121212;
-  }
-  ::-webkit-scrollbar-thumb {
-    background: #444;
-    border-radius: 4px;
-  }
-  ::-webkit-scrollbar-thumb:hover {
-    background: #666;
-  }
-  
-  /* RESPONSIVE ADJUSTMENTS */
-  @media (max-width: 600px) {
-    .nav-toggle {
-      display: block;
-    }
-    .navbar-links {
-      display: none; /* hidden by default on small screens */
-      flex-direction: column;
-      position: absolute;
-      top: 60px;
-      right: 0;
-      background-color: #1f1f1f;
-      width: 200px;
-      padding: 10px;
-      border-left: 2px solid #0093ff;
-    }
-    .navbar-links.active {
-      display: flex; /* show nav when toggled */
-    }
-    .navbar-links a {
-      margin: 10px 0;
-    }
-    .status-bar {
-      flex-direction: column;
-    }
-    .panel {
-      padding: 20px;
-    }
-    .btn {
-      padding: 15px 20px;
-      font-size: 1.1rem;
-      margin: 10px 0;
-    }
+  form label {
+    font-size: 1.05rem;
+    margin-top: 10px;
+    display: block;
   }
   

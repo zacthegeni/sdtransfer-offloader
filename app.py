@@ -82,11 +82,13 @@ def logs():
         offload = f"Could not read offload log: {e}"
     return render_template('logs.html', upload=upload, offload=offload)
 
+# --- Updated Wi‑Fi route ---
 @app.route('/wifi', methods=['GET', 'POST'])
 @auth.login_required
 def wifi():
     if request.method == 'POST':
-        ssid = request.form['ssid']
+        # Use the SSID selected from the dropdown or the custom input (if provided)
+        ssid = request.form.get('ssid') or request.form.get('custom_ssid')
         psk = request.form['psk']
         config = f'\nnetwork={{\n ssid="{ssid}"\n psk="{psk}"\n}}\n'
         try:
@@ -96,12 +98,34 @@ def wifi():
         except Exception as e:
             print(f"Wi-Fi config failed: {e}")
         return redirect(url_for('wifi'))
-    return render_template('wifi.html')
+    else:
+        # Scan for nearby Wi-Fi networks using nmcli.
+        ssid_list = []
+        try:
+            scan_output = subprocess.check_output(
+                ["nmcli", "-t", "-f", "SSID", "dev", "wifi"],
+                stderr=subprocess.STDOUT
+            ).decode()
+            # Split the output into lines, remove duplicates and blank lines.
+            raw_ssids = scan_output.split('\n')
+            ssid_set = set()
+            for line in raw_ssids:
+                line = line.strip()
+                if line and not line.startswith("--"):
+                    ssid_set.add(line)
+            ssid_list = sorted(ssid_set)
+        except subprocess.CalledProcessError as e:
+            print(f"nmcli scan failed: {e.output.decode()}")
+        except FileNotFoundError:
+            print("nmcli is not installed or not found in PATH.")
+        return render_template('wifi.html', ssids=ssid_list)
 
+# --- Simplified Email Notifications route ---
 @app.route('/notifications', methods=['GET', 'POST'])
 @auth.login_required
 def notifications():
     if request.method == 'POST':
+        # Save email settings so anyone can set them up easily.
         config = {
             "smtp_server": request.form.get("smtp_server", ""),
             "smtp_port": request.form.get("smtp_port", ""),

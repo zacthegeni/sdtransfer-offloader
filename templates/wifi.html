@@ -1,7 +1,23 @@
-<!-- templates/wifi.html -->
-<form method="post">
-SSID: <input name="ssid"><br>
-Password: <input type="password" name="psk"><br>
-<input type="submit" value="Connect">
-</form>
-<a href="/">Back</a>
+{% extends "base.html" %}
+{% block title %}Wi‑Fi Settings - SDTransfer Offloader{% endblock %}
+{% block content %}
+  <h2>Wi‑Fi Settings</h2>
+  <div class="panel">
+    <form method="post">
+      <label for="ssid">Available Networks:</label>
+      <select id="ssid" name="ssid">
+        {% for s in ssids %}
+          <option value="{{ s }}">{{ s }}</option>
+        {% endfor %}
+      </select>
+      <p>Or enter a custom SSID (for hidden networks):</p>
+      <input type="text" placeholder="Hidden SSID (optional)" name="custom_ssid">
+      <label for="psk">Password:</label>
+      <input type="password" id="psk" name="psk" required>
+      <input class="btn" type="submit" value="Connect">
+    </form>
+  </div>
+  <a class="btn" href="/">
+    <i class="fa fa-home"></i> Back to Dashboard
+  </a>
+{% endblock %}
