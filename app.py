@@ -1,21 +1,21 @@
 from flask import Flask, request, render_template, redirect, url_for, jsonify
 import subprocess, shutil, os, json, psutil, datetime
 from flask_httpauth import HTTPBasicAuth
-from werkzeug.security import generate_password_hash, check_password_hash
 from dotenv import load_dotenv
 
 load_dotenv('.env')
 app = Flask(__name__)
 auth = HTTPBasicAuth()
 
-users = {
-    os.getenv("ADMIN_USERNAME", "admin"): generate_password_hash(os.getenv("ADMIN_PASSWORD", "your_secure_password"))
-}
-
+# Updated authentication function:
 @auth.verify_password
 def verify_password(username, password):
-    if username in users and check_password_hash(users.get(username), password):
-        return username
+    admin_username = os.getenv("ADMIN_USERNAME", "")
+    admin_password = os.getenv("ADMIN_PASSWORD", "")
+    # If no credentials are set, allow access.
+    if not admin_username or not admin_password:
+        return True
+    return username == admin_username and password == admin_password
 
 UPLOAD_LOG = os.getenv("UPLOAD_LOG", "/home/pi/rclone.log")
 OFFLOAD_LOG = os.getenv("OFFLOAD_LOG", "/home/pi/offload.log")
@@ -82,12 +82,10 @@ def logs():
         offload = f"Could not read offload log: {e}"
     return render_template('logs.html', upload=upload, offload=offload)
 
-# --- Updated Wi‑Fi route ---
 @app.route('/wifi', methods=['GET', 'POST'])
 @auth.login_required
 def wifi():
     if request.method == 'POST':
-        # Use the SSID selected from the dropdown or the custom input (if provided)
         ssid = request.form.get('ssid') or request.form.get('custom_ssid')
         psk = request.form['psk']
         config = f'\nnetwork={{\n ssid="{ssid}"\n psk="{psk}"\n}}\n'
@@ -98,34 +96,13 @@ def wifi():
         except Exception as e:
             print(f"Wi-Fi config failed: {e}")
         return redirect(url_for('wifi'))
-    else:
-        # Scan for nearby Wi-Fi networks using nmcli.
-        ssid_list = []
-        try:
-            scan_output = subprocess.check_output(
-                ["nmcli", "-t", "-f", "SSID", "dev", "wifi"],
-                stderr=subprocess.STDOUT
-            ).decode()
-            # Split the output into lines, remove duplicates and blank lines.
-            raw_ssids = scan_output.split('\n')
-            ssid_set = set()
-            for line in raw_ssids:
-                line = line.strip()
-                if line and not line.startswith("--"):
-                    ssid_set.add(line)
-            ssid_list = sorted(ssid_set)
-        except subprocess.CalledProcessError as e:
-            print(f"nmcli scan failed: {e.output.decode()}")
-        except FileNotFoundError:
-            print("nmcli is not installed or not found in PATH.")
-        return render_template('wifi.html', ssids=ssid_list)
+    # (Optionally, add your SSID scanning code here.)
+    return render_template('wifi.html', ssids=[])
 
-# --- Simplified Email Notifications route ---
 @app.route('/notifications', methods=['GET', 'POST'])
 @auth.login_required
 def notifications():
     if request.method == 'POST':
-        # Save email settings so anyone can set them up easily.
         config = {
             "smtp_server": request.form.get("smtp_server", ""),
             "smtp_port": request.form.get("smtp_port", ""),
@@ -176,6 +153,25 @@ def run_action(action):
         except Exception as e:
             print(f"Failed to run action {action}: {e}")
     return redirect('/')
+
+# New Route: Credentials Setup
+@app.route('/credentials', methods=['GET', 'POST'])
+def credentials():
+    current_username = os.getenv("ADMIN_USERNAME", "")
+    if request.method == "POST":
+        username = request.form.get("username")
+        password = request.form.get("password")
+        env_content = (
+            f"ADMIN_USERNAME={username}\n"
+            f"ADMIN_PASSWORD={password}\n"
+            f"UPLOAD_LOG=/home/pi/rclone.log\n"
+            f"OFFLOAD_LOG=/home/pi/offload.log\n"
+        )
+        with open(".env", "w") as f:
+            f.write(env_content)
+        load_dotenv(".env")
+        return redirect(url_for("index"))
+    return render_template("credentials.html", current_username=current_username)
 
 if __name__ == '__main__':
     app.run('0.0.0.0', port=5000)
