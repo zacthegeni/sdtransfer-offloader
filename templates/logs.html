@@ -1,54 +1,38 @@
-<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Logs - SDTransfer Offloader</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <script>
-      function toggleNav() {
-        const nav = document.getElementById("mobile-nav");
-        nav.classList.toggle("active");
-      }
-    </script>
-  </head>
-  <body>
-    <!-- NAVBAR -->
-    <header class="navbar">
-      <div class="navbar-title">
-        <i class="fa fa-satellite-dish"></i> SDTransfer Offloader
-      </div>
-      <button class="nav-toggle" onclick="toggleNav()">
-        <i class="fa fa-bars"></i>
-      </button>
-      <nav id="mobile-nav" class="navbar-links">
-        <a href="/"><i class="fa fa-home"></i> Dashboard</a>
-        <a href="/wifi"><i class="fa fa-wifi"></i> Wi‑Fi</a>
-        <a href="/notifications"><i class="fa fa-envelope"></i> Email</a>
-        <a href="/logs"><i class="fa fa-file-alt"></i> Logs</a>
-        <a href="/diagnostics"><i class="fa fa-tachometer-alt"></i> Diagnostics</a>
-        <a href="/backup_config"><i class="fa fa-save"></i> Backup</a>
-        <a href="/update_system"><i class="fa fa-sync-alt"></i> Update</a>
-      </nav>
-    </header>
+{% extends "base.html" %}
+{% block title %}Logs - SDTransfer Offloader{% endblock %}
+{% block content %}
+  <h2>System Logs</h2>
 
-    <!-- MAIN CONTENT -->
-    <div class="container">
-      <h2>Logs</h2>
-      <div class="panel">
-        <h3>Upload Log</h3>
-        <pre>{{ upload }}</pre>
-      </div>
-      <div class="panel">
-        <h3>Offload Log</h3>
-        <pre>{{ offload }}</pre>
-      </div>
-      <a class="btn" href="/"><i class="fa fa-home"></i> Back to Dashboard</a>
-    </div>
+  <div class="panel">
+    <h3>Offload Script Log (Last 200 lines)</h3>
+    <pre class="log-output">{{ offload | default('(Log file empty or not found)') }}</pre>
+  </div>
 
-    <!-- FOOTER -->
-    <footer class="footer">
-      <p>&copy; 2025 SDTransfer Offloader</p>
-    </footer>
-  </body>
-</html>
+  <div class="panel">
+    <h3>Rclone Upload Log (Last 200 lines)</h3>
+    <pre class="log-output">{{ upload | default('(Log file empty or not found)') }}</pre>
+  </div>
+
+  <div class="panel">
+    <h3>Retry Offload Log (Last 100 lines)</h3>
+    <pre class="log-output">{{ retry | default('(Log file empty or not found)') }}</pre>
+  </div>
+
+  <div class="panel">
+    <h3>Notification Sending Log (Last 100 lines)</h3>
+    <pre class="log-output">{{ notification | default('(Log file empty or not found)') }}</pre>
+  </div>
+
+   <div class="panel">
+    <h3>Eject Script Log (Last 50 lines)</h3>
+    <pre class="log-output">{{ eject | default('(Log file empty or not found)') }}</pre>
+  </div>
+
+   <div class="panel">
+    <h3>udev Trigger Log (Last 50 lines)</h3>
+    <pre class="log-output">{{ udev | default('(Log file empty or not found)') }}</pre>
+  </div>
+
+
+  <a class="btn btn-secondary" href="{{ url_for('index') }}"><i class="fa fa-arrow-left"></i> Back to Dashboard</a>
+{% endblock %}

@@ -6,10 +6,70 @@
     <title>{% block title %}SDTransfer Offloader{% endblock %}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <!-- Font Awesome for icons -->
-    <link rel="stylesheet"
-          href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
-          integrity="sha512-p+1vG0+owjT5y8k+9v8g4B+p1tXUJcN/h8H8L+Y9i7Q76fDwPjdFTOi45q6p0bz6N28+7+1IhPzf3c+3aw9P5Q=="
-          crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <style>
+      /* Styles for notification area (can be moved to style.css) */
+      #notification-area {
+        position: fixed;
+        top: 80px; /* Adjust based on navbar height + desired gap */
+        right: 20px;
+        width: 320px; /* Max width */
+        max-height: calc(100vh - 100px); /* Prevent overflow */
+        overflow-y: auto;
+        z-index: 1050; /* Ensure it's above other elements */
+        display: flex;
+        flex-direction: column;
+        gap: 10px; /* Space between notifications */
+      }
+      .toast-notification {
+        background-color: #333;
+        color: #f1f1f1;
+        padding: 12px 15px;
+        border-radius: 8px;
+        border-left: 5px solid #666; /* Default border color */
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+        opacity: 0.98;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        word-wrap: break-word; /* Ensure long words break */
+        overflow: hidden;
+        transition: opacity 0.5s ease-out, transform 0.3s ease-out;
+        transform: translateX(0); /* Start visible */
+      }
+      .toast-notification.info { border-left-color: #2196F3; } /* Blue */
+      .toast-notification.success { border-left-color: #4CAF50; } /* Green */
+      .toast-notification.warning { border-left-color: #ffc107; color: #333; background-color: #fff3cd;} /* Yellow */
+      .toast-notification.error { border-left-color: #f44336; background-color: #721c24; color: #f8d7da;} /* Red */
+
+      .toast-message {
+        flex-grow: 1;
+        margin-right: 10px;
+        font-size: 0.9rem;
+        line-height: 1.4;
+      }
+      .toast-close-btn {
+        background: none;
+        border: none;
+        color: #aaa;
+        font-size: 1.3rem;
+        line-height: 1;
+        cursor: pointer;
+        padding: 0 0 0 5px;
+        margin-left: 5px;
+      }
+      .toast-close-btn:hover { color: #fff; }
+      .toast-notification.warning .toast-close-btn { color: #856404; }
+      .toast-notification.warning .toast-close-btn:hover { color: #333; }
+      .toast-notification.error .toast-close-btn { color: #f8d7da; }
+      .toast-notification.error .toast-close-btn:hover { color: #fff; }
+
+      /* Fade out animation */
+       .toast-notification.fade-out {
+           opacity: 0;
+           transform: translateX(20px); /* Slide out */
+       }
+    </style>
   </head>
   <body>
     <!-- NAVBAR -->
@@ -18,26 +78,94 @@
         <i class="fa fa-satellite-dish"></i> SDTransfer Offloader
       </div>
       <nav class="navbar-links">
-        <a href="/"><i class="fa fa-home"></i> Dashboard</a>
-        <a href="/wifi"><i class="fa fa-wifi"></i> Wi‑Fi</a>
-        <a href="/notifications"><i class="fa fa-envelope"></i> Email</a>
-        <a href="/logs"><i class="fa fa-file-alt"></i> Logs</a>
-        <a href="/diagnostics"><i class="fa fa-tachometer-alt"></i> Diagnostics</a>
-        <a href="/backup_config"><i class="fa fa-save"></i> Backup</a>
-        <a href="/update_system"><i class="fa fa-sync-alt"></i> Update</a>
-        <!-- NEW Credentials Link -->
-        <a href="/credentials"><i class="fa fa-user-shield"></i> Credentials</a>
+        <a href="{{ url_for('index') }}"><i class="fa fa-home"></i> Dashboard</a>
+        <a href="{{ url_for('wifi') }}"><i class="fa fa-wifi"></i> Wi‑Fi</a>
+        <a href="{{ url_for('notifications') }}"><i class="fa fa-envelope"></i> Email</a>
+        <a href="{{ url_for('logs') }}"><i class="fa fa-file-alt"></i> Logs</a>
+        <a href="{{ url_for('diagnostics') }}"><i class="fa fa-tachometer-alt"></i> Diagnostics</a>
+        <a href="{{ url_for('backup_config') }}"><i class="fa fa-save"></i> Backup</a>
+        <a href="{{ url_for('update_system') }}"><i class="fa fa-sync-alt"></i> Update</a>
+        <a href="{{ url_for('credentials') }}"><i class="fa fa-user-shield"></i> Credentials</a>
+        <a href="{{ url_for('drive_auth') }}"><i class="fa fa-cloud"></i> Drive Auth</a>
       </nav>
     </header>
 
+    <!-- Notification Area -->
+    <div id="notification-area">
+      <!-- Notifications will be added here by JavaScript -->
+    </div>
+
     <!-- MAIN CONTENT -->
     <div class="container">
+      <!-- Flash Messages Area -->
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          <div class="flash-messages">
+            {% for category, message in messages %}
+              {% set alert_class = 'alert-' + category if category in ['success', 'error', 'warning'] else 'alert-info' %}
+              <div class="alert {{ alert_class }}">{{ message }}</div>
+            {% endfor %}
+          </div>
+        {% endif %}
+      {% endwith %}
+
       {% block content %}{% endblock %}
     </div>
 
     <!-- FOOTER -->
     <footer class="footer">
-      <p>&copy; 2025 SDTransfer Offloader</p>
+      <p>© {% now 'local', '%Y' %} SDTransfer Offloader</p> {# Dynamic year #}
     </footer>
+
+    <script>
+      // --- In-App Notification via SSE ---
+      const notificationArea = document.getElementById('notification-area');
+      let eventSource = null; // Initialize EventSource variable
+      let sseReconnectTimeout = null; // To manage reconnect timer
+
+      function addToastNotification(message, type = 'info') {
+        if (!notificationArea) return;
+        const toast = document.createElement('div');
+        toast.className = `toast-notification ${type}`;
+        const messageSpan = document.createElement('span');
+        messageSpan.className = 'toast-message';
+        messageSpan.textContent = message;
+        const closeBtn = document.createElement('button');
+        closeBtn.className = 'toast-close-btn';
+        closeBtn.innerHTML = '×';
+        closeBtn.setAttribute('aria-label', 'Close Notification');
+        closeBtn.onclick = () => { toast.classList.add('fade-out'); setTimeout(() => { toast.remove(); }, 500); };
+        toast.appendChild(messageSpan); toast.appendChild(closeBtn);
+        notificationArea.insertBefore(toast, notificationArea.firstChild);
+        if (type !== 'error') { setTimeout(() => { if (toast.parentNode) { closeBtn.onclick(); } }, 10000); }
+      }
+
+      function connectSSE() {
+          if (eventSource && eventSource.readyState !== EventSource.CLOSED) { eventSource.close(); } // Close existing
+          if (sseReconnectTimeout) { clearTimeout(sseReconnectTimeout); sseReconnectTimeout = null; } // Clear pending reconnect
+
+          console.log("SSE: Connecting...");
+          try {
+              eventSource = new EventSource("{{ url_for('stream') }}");
+              eventSource.onopen = function(event) { console.log("SSE: Connection opened."); };
+              eventSource.onmessage = function(event) {
+                try { if (event.data.startsWith(':')) return; const data = JSON.parse(event.data); console.log("SSE Received:", data); addToastNotification(data.message, data.type); }
+                catch (e) { console.error("Error parsing SSE data:", e, event.data); }
+              };
+              eventSource.onerror = function(err) {
+                console.error("SSE: Error occurred:", err);
+                eventSource.close();
+                console.log("SSE: Connection closed due to error. Reconnecting in 30s...");
+                sseReconnectTimeout = setTimeout(connectSSE, 30000);
+              };
+          } catch (e) {
+               console.error("SSE: Failed to create EventSource:", e);
+               sseReconnectTimeout = setTimeout(connectSSE, 30000); // Retry even if initial connection fails
+          }
+      }
+      // Initial connection on page load
+      window.addEventListener('load', connectSSE);
+    </script>
+    {% block extra_js %}{% endblock %} {# Allow adding page-specific JS #}
   </body>
 </html>

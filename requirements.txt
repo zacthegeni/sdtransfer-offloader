@@ -1,0 +1,7 @@
+# /home/pi/pi-offloader/requirements.txt
+Flask
+Flask-HTTPAuth
+python-dotenv
+gunicorn
+psutil
+gevent # For Gunicorn async worker (SSE)

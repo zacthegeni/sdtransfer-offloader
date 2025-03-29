@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Google Drive Authentication - SDTransfer Offloader{% endblock %}
+{% block content %}
+  <h2>Google Drive Authentication</h2>
+  <div class="panel">
+    <p>
+      Use this page to authorize `rclone` to access your Google Drive for the remote named: <strong>{{ remote_name | default('gdrive') }}</strong>.
+    </p>
+    <p>
+       Ensure you have run `rclone config` via the command line at least once to initially set up this remote. This page helps refresh the authorization token if needed.
+    </p>
+    <ol>
+      <li>Click the link below to generate an authentication URL (opens in a new tab).</li>
+      <li>Follow the steps on the Google page to grant permission.</li>
+      <li>Google will provide you with a verification code/token.</li>
+      <li>Copy that code and paste it into the form below.</li>
+      <li>Click "Submit Token".</li>
+    </ol>
+
+    {% if error_message %}
+       <p class="alert alert-error">Error generating URL: {{ error_message }}</p>
+    {% elif auth_url %}
+      <p>
+        <strong>Step 1: Click this link to authorize:</strong><br>
+        <a href="{{ auth_url }}" target="_blank" rel="noopener noreferrer" class="external-link" style="word-break: break-all;">{{ auth_url }}</a>
+         <i class="fa-solid fa-external-link-alt"></i>
+      </p>
+    {% else %}
+       <p class="alert alert-warning">Could not generate authentication URL. Check rclone setup and logs.</p>
+    {% endif %}
+
+    <hr>
+
+    <form method="post" action="{{ url_for('drive_auth') }}">
+      <label for="auth_token">Step 2: Paste Google Verification Code/Token Here:</label>
+      <input type="text" id="auth_token" name="auth_token" placeholder="Paste the code from Google here" required>
+      <input class="btn" type="submit" value="Submit Token">
+    </form>
+  </div>
+  <a class="btn btn-secondary" href="{{ url_for('index') }}"><i class="fa fa-arrow-left"></i> Back to Dashboard</a>
+{% endblock %}

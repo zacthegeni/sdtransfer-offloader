@@ -1,38 +1,52 @@
 #!/bin/bash
-# Load parameters from .env if available
-if [ -f /home/pi/pi-offloader/.env ]; then
-    export $(grep -v '^#' /home/pi/pi-offloader/.env | xargs)
-fi
+# /home/pi/pi-offloader/offload.sh
+# Wrapper script to run upload_and_cleanup.sh
+# Ensures environment variables from .env are loaded
 
-MOUNT_POINT="/media/pi/SDCARD"
-DEST_DIR="/home/pi/footage"
-LOGFILE="/home/pi/offload.log"
-MIN_FREE_SPACE_MB="${MIN_FREE_SPACE_MB:-1024}"
-VIDEO_SRC="$MOUNT_POINT/PRIVATE/M4ROOT/CLIP"
-PHOTO_SRC="$MOUNT_POINT/DCIM/100MSDCF"
-VIDEO_DEST="$DEST_DIR/videos"
-PHOTO_DEST="$DEST_DIR/photos"
+SCRIPT_DIR=$(dirname "$(realpath "$0")")
+ENV_FILE="$SCRIPT_DIR/.env"
+UPLOAD_SCRIPT="$SCRIPT_DIR/upload_and_cleanup.sh"
+LOG_FILE_WRAPPER="$SCRIPT_DIR/logs/offload_wrapper.log" # Log for this wrapper
 
-if [ ! -d "$MOUNT_POINT" ]; then
-    echo "Mount point $MOUNT_POINT not found. Is the SD card mounted?" >> "$LOGFILE"
-    exit 1
-fi
+# Ensure log directory exists
+mkdir -p "$(dirname "$LOG_FILE_WRAPPER")"
 
-mkdir -p "$VIDEO_DEST" "$PHOTO_DEST"
-echo -e "\n[$(date)] Checking SD card..." >> "$LOGFILE"
+echo "-------------------------------------" >> "$LOG_FILE_WRAPPER"
+echo "Offload Wrapper Started: $(date)" >> "$LOG_FILE_WRAPPER"
 
-FREE_SPACE=$(df --output=avail "$DEST_DIR" | tail -n1)
-FREE_SPACE_MB=$((FREE_SPACE / 1024))
-
-if [ "$FREE_SPACE_MB" -lt "$MIN_FREE_SPACE_MB" ]; then
-    echo "Not enough space. Skipping offload." >> "$LOGFILE"
-    exit 1
-fi
-
-if [ -d "$VIDEO_SRC" ] || [ -d "$PHOTO_SRC" ]; then
-    [ -d "$VIDEO_SRC" ] && rsync -av --remove-source-files "$VIDEO_SRC/" "$VIDEO_DEST/" >> "$LOGFILE"
-    [ -d "$PHOTO_SRC" ] && rsync -av --remove-source-files "$PHOTO_SRC/" "$PHOTO_DEST/" >> "$LOGFILE"
-    echo "Transfer complete." >> "$LOGFILE"
+# Source environment variables from .env file if it exists
+if [ -f "$ENV_FILE" ]; then
+  echo "Loading environment variables from $ENV_FILE" >> "$LOG_FILE_WRAPPER"
+  # Use 'set -a' to export all variables defined in the sourced file
+  set -a
+  # Use process substitution to avoid subshell issues with variable scope if needed
+  # source <(grep -v '^#' "$ENV_FILE" | grep -v '^$' )
+  # Simpler source usually works if scripts don't modify parent env vars
+  source "$ENV_FILE"
+  set +a
 else
-    echo "No FX3 folders found." >> "$LOGFILE"
+  echo "Error: Environment file $ENV_FILE not found." >> "$LOG_FILE_WRAPPER"
+  # Optionally try to notify Flask app about this critical error
+  # (Requires curl, jq, token, and app running)
+  exit 1
 fi
+
+# Check if the main upload script exists and is executable
+if [ -x "$UPLOAD_SCRIPT" ]; then
+  echo "Executing $UPLOAD_SCRIPT" >> "$LOG_FILE_WRAPPER"
+  # Execute the main script. It handles its own logging & notifications
+  # Redirect script's stdout/stderr to the wrapper log for debugging script execution issues
+  bash "$UPLOAD_SCRIPT" >> "$LOG_FILE_WRAPPER" 2>&1
+  EXIT_CODE=$?
+  echo "Upload script finished with exit code: $EXIT_CODE" >> "$LOG_FILE_WRAPPER"
+  # Don't exit wrapper with error unless script failed critically
+  # exit $EXIT_CODE
+else
+  echo "Error: Upload script $UPLOAD_SCRIPT not found or not executable." >> "$LOG_FILE_WRAPPER"
+  # Notify Flask app
+  exit 1
+fi
+
+echo "Offload Wrapper Finished: $(date)" >> "$LOG_FILE_WRAPPER"
+echo "-------------------------------------" >> "$LOG_FILE_WRAPPER"
+exit 0 # Wrapper itself succeeded in calling the script

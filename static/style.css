@@ -1,170 +1,146 @@
-/* style.css - Dark Theme with Elliptical Gradient Upload Button */
+/* style.css - Dark Mode with Blue Accents, Modern Layout */
 
 /* RESET & BASE */
 * {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-    font-family: 'Segoe UI', Tahoma, sans-serif;
-  }
-  
-  body {
-    background-color: #121212;
-    color: #e0e0e0;
-    line-height: 1.6;
-    overflow-x: hidden;
-  }
-  
-  /* NAVBAR */
-  .navbar {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    background-color: #1f1f1f;
-    padding: 15px 30px;
-    border-bottom: 2px solid #0093ff;
-  }
-  .navbar-title {
-    font-size: 1.4rem;
-    font-weight: 500;
-    color: #ffffff;
-  }
-  .navbar-links a {
-    margin-left: 20px;
-    color: #0093ff;
-    text-decoration: none;
-    font-weight: 500;
-    transition: color 0.2s ease;
-  }
-  .navbar-links a:hover {
-    color: #00a4ff;
-  }
-  
-  /* CONTAINER */
-  .container {
-    max-width: 1200px;
-    margin: 20px auto;
-    padding: 20px;
-  }
-  
-  /* STATUS BAR */
-  .status-bar {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 20px;
-    margin-bottom: 30px;
-  }
-  .status-item {
-    background-color: #1f1f1f;
-    padding: 20px;
-    border-radius: 8px;
-    flex: 1;
-    min-width: 150px;
-    text-align: center;
-  }
-  .status-item h4 {
-    margin-bottom: 10px;
-    font-size: 1.1rem;
-    color: #ffffff;
-  }
-  
-  /* PANEL */
-  .panel {
-    background-color: #1e1e1e;
-    padding: 30px;
-    border-radius: 10px;
-    box-shadow: 0 4px 8px rgba(0,0,0,0.3);
-    margin-bottom: 30px;
-  }
-  .panel h3 {
-    margin-bottom: 20px;
-    font-size: 1.3rem;
-    color: #ffffff;
-    font-weight: 400;
-  }
-  
-  /* BUTTON GROUP */
-  .button-group {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 15px;
-    justify-content: center;
-  }
-  
-  /* ELLIPTICAL GRADIENT UPLOAD BUTTON */
-  .upload-btn {
-    background-image: linear-gradient(144deg, #af40ff, #5b42f3 50%, #00ddeb);
-    color: #ffffff;
-    border: none;
-    border-radius: 40px; /* Elliptical shape */
-    padding: 15px 30px;
-    font-size: 1.2rem;
-    cursor: pointer;
-    display: inline-block;
-    transition: transform 0.2s ease;
-    text-align: center;
-    margin-bottom: 10px; /* some spacing below the button */
-  }
-  .upload-btn:hover {
-    transform: scale(1.05);
-  }
-  
-  /* HELP TEXT UNDER THE UPLOAD BUTTON */
-  .help-text {
-    color: #ccc;
-    font-size: 0.95rem;
-    margin-top: 10px;
-    max-width: 500px;
-    text-align: center;
-    margin-left: auto;
-    margin-right: auto;
-  }
-  
-  /* GENERIC BUTTONS */
-  .btn {
-    background-image: linear-gradient(144deg, #af40ff, #5b42f3 50%, #00ddeb);
-    border: 0;
-    border-radius: 8px;
-    color: #ffffff;
-    padding: 10px 14px;
-    margin: 5px 0;
-    cursor: pointer;
-    transition: background 0.3s ease, transform 0.2s ease;
-    font-size: 0.95rem;
-  }
-  .btn:hover {
-    transform: scale(1.02);
-  }
-  .btn:active {
-    transform: scale(0.95);
-  }
-  
-  /* FOOTER */
-  .footer {
-    text-align: center;
-    padding: 20px;
-    background-color: #1f1f1f;
-    color: #888;
-    font-size: 0.9rem;
-  }
-  
-  /* SCROLLBAR */
-  ::-webkit-scrollbar {
-    width: 8px;
-  }
-  ::-webkit-scrollbar-track {
-    background: #121212;
-  }
-  ::-webkit-scrollbar-thumb {
-    background: #444;
-    border-radius: 4px;
-  }
-  ::-webkit-scrollbar-thumb:hover {
-    background: #666;
-  }
-  /* ... (Your existing dark theme code above) ... */
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: 'Segoe UI', Tahoma, sans-serif;
+}
 
-/* FORM INPUTS (Wi-Fi, etc.) */
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: #121212;
+  color: #e0e0e0;
+  line-height: 1.6;
+  overflow-x: hidden;
+  padding-bottom: 40px; /* extra space for mobile footer */
+}
+
+/* NAVBAR */
+.navbar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  background-color: #1f1f1f;
+  padding: 15px 30px;
+  border-bottom: 2px solid #0093ff;
+}
+.navbar-title {
+  font-size: 1.4rem;
+  font-weight: 500;
+  color: #ffffff;
+}
+.navbar-links a {
+  margin-left: 20px;
+  color: #0093ff;
+  text-decoration: none;
+  font-weight: 500;
+  transition: color 0.2s ease;
+}
+.navbar-links a:hover {
+  color: #00a4ff;
+}
+
+/* FLASH MESSAGES */
+.flash-container {
+  max-width: 1200px;
+  margin: 10px auto;
+  padding: 0 20px;
+}
+.flash-message {
+  padding: 10px;
+  margin-bottom: 10px;
+  border-radius: 5px;
+}
+.flash-message.success {
+  background-color: #2ecc71;
+  color: #fff;
+}
+.flash-message.error {
+  background-color: #e74c3c;
+  color: #fff;
+}
+
+/* CONTAINER */
+.container {
+  max-width: 1200px;
+  margin: 20px auto;
+  padding: 20px;
+}
+
+/* STATUS BAR */
+.status-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  margin-bottom: 30px;
+}
+.status-item {
+  background-color: #1f1f1f;
+  padding: 20px;
+  border-radius: 8px;
+  flex: 1;
+  min-width: 150px;
+  text-align: center;
+}
+.status-item h4 {
+  margin-bottom: 10px;
+  font-size: 1.1rem;
+  color: #ffffff;
+}
+
+/* PANEL */
+.panel {
+  background-color: #1e1e1e;
+  padding: 30px;
+  border-radius: 10px;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+  margin-bottom: 30px;
+}
+.panel h3 {
+  margin-bottom: 20px;
+  font-size: 1.3rem;
+  color: #ffffff;
+  font-weight: 400;
+}
+
+/* BUTTON GROUP & GENERIC BUTTONS */
+.button-group, .btn {
+  display: inline-block;
+}
+.upload-btn, .btn {
+  background-image: linear-gradient(144deg, #af40ff, #5b42f3 50%, #00ddeb);
+  border: none;
+  border-radius: 8px;
+  color: #ffffff;
+  padding: 10px 14px;
+  margin: 5px 0;
+  cursor: pointer;
+  transition: background 0.3s ease, transform 0.2s ease;
+  font-size: 0.95rem;
+  min-width: 120px;
+  text-align: center;
+  display: inline-block;
+}
+.upload-btn {
+  border-radius: 40px;
+  font-size: 1.2rem;
+  padding: 15px 30px;
+  margin-bottom: 10px;
+}
+.btn:hover, .upload-btn:hover {
+  transform: scale(1.02);
+}
+.btn:active, .upload-btn:active {
+  transform: scale(0.98);
+}
+
+/* FORM INPUTS */
 form select,
 form input[type="text"],
 form input[type="password"] {
@@ -183,10 +159,44 @@ form label {
   display: block;
 }
 
-/* SPECIFICALLY FOR THE Wi‑Fi SELECT DROPDOWN */
-.wifi-select {
-  height: 2.5rem;  /* slightly taller dropdown */
-  font-size: 1.05rem;
+/* FOOTER */
+.footer {
+  text-align: center;
+  padding: 20px;
+  background-color: #1f1f1f;
+  color: #888;
+  font-size: 0.9rem;
+  position: fixed;
+  bottom: 0;
+  width: 100%;
 }
 
-/* Make sure the panel, .btn, etc. remain the same as your previous code */
+/* SCROLLBAR */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #121212;
+}
+::-webkit-scrollbar-thumb {
+  background: #444;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #666;
+}
+
+/* RESPONSIVE DESIGN */
+@media (max-width: 768px) {
+  .navbar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .navbar-links a {
+    margin-left: 0;
+    margin-top: 10px;
+  }
+  .status-bar {
+    flex-direction: column;
+  }
+}
