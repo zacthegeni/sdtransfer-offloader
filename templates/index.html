@@ -18,16 +18,20 @@
       <h4>Memory Usage</h4>
       <p><i class="fa fa-memory"></i> <span id="status-mem">{{ status.mem_usage | default('N/A') }}</span>%</p>
     </div>
-    <!-- SD Card Status Item -->
     <div class="status-item">
         <h4>SD Card Status</h4>
         <p id="status-sd-icon">
             <i class="fa-solid fa-sd-card" style="color: {{ 'lightgreen' if status.sd_card_mounted else 'lightcoral' }}; font-size: 1.5rem; vertical-align: middle;"></i>
         </p>
         <p id="status-sd-text" style="font-size: 0.9rem; margin-top: 5px; color: #ccc;">
-            {% if status.sd_card_mounted %} Mounted
-            {% elif status.sd_card_path_exists %} Path Exists (Not Mounted)
-            {% else %} Not Detected {% endif %}
+            {% if status.sd_card_mounted %} Mounted {% elif status.sd_card_path_exists %} Path Exists (Not Mounted) {% else %} Not Detected {% endif %}
+        </p>
+    </div>
+    <div class="status-item">
+        <h4>Last Offload Run</h4>
+        <p><i class="fa-regular fa-clock"></i></p>
+        <p id="status-last-run" style="font-size: 0.85rem; margin-top: 5px; color: #ccc;">
+            {{ status.last_offload_run | default('Unknown') }}
         </p>
     </div>
   </div>
@@ -35,40 +39,48 @@
   <!-- MAIN CONTROLS PANEL -->
   <div class="panel">
     <h3>Main Controls</h3>
-    <p class="help-text">Run background tasks or manage the system. Scripts provide notifications on start/completion/error.</p>
     <div class="button-group">
-      <button class="btn offload-btn" onclick="location.href='{{ url_for('run_action', action='offload') }}'">
-        <i class="fa-solid fa-sd-card"></i> Run Offload Now
-      </button>
-      {# <button class="btn upload-btn" onclick="location.href='{{ url_for('run_action', action='upload') }}'"> #}
-      {#  <i class="fa-solid fa-cloud-arrow-up"></i> Run Upload Only #}
-      {# </button> #}
-      <button class="btn retry-btn" onclick="location.href='{{ url_for('run_action', action='retry') }}'">
-        <i class="fa-solid fa-rotate-right"></i> Retry Failed Uploads
-      </button>
-      <button class="btn eject-btn" onclick="confirmAction('eject', 'Are you sure you want to try unmounting the SD card? Ensure no operations are running.')">
-        <i class="fa-solid fa-eject"></i> Eject SD Card
-      </button>
-      <hr style="border-color: #333; width: 80%; margin: 20px auto; border-style: dashed;">
-      <button class="btn reboot-btn" onclick="confirmAction('reboot', 'WARNING: This will reboot the Raspberry Pi immediately. Proceed?')">
-        <i class="fa-solid fa-power-off"></i> Reboot Pi
-      </button>
-      <button class="btn shutdown-btn" onclick="confirmAction('shutdown', 'WARNING: This will shut down the Raspberry Pi immediately. Proceed?')">
-        <i class="fa-solid fa-ban"></i> Shutdown Pi
-      </button>
-    </div>
-  </div>
+      <div class="button-container">
+          <button class="btn offload-btn" onclick="location.href='{{ url_for('run_action', action='offload') }}'">
+            <i class="fa-solid fa-sd-card"></i> Run Offload Now
+          </button>
+          <p class="button-description">Copies new files from SD card & uploads.</p>
+      </div>
+      <div class="button-container">
+          <button class="btn retry-btn" onclick="location.href='{{ url_for('run_action', action='retry') }}'">
+            <i class="fa-solid fa-rotate-right"></i> Retry Failed Uploads
+          </button>
+          <p class="button-description">Attempts upload for files copied but not yet uploaded.</p>
+      </div>
+      <div class="button-container">
+          <button class="btn eject-btn" onclick="confirmAction('eject', 'Attempt to unmount the SD card?')">
+            <i class="fa-solid fa-eject"></i> Eject SD Card
+          </button>
+           <p class="button-description">Safely unmounts the SD card if possible.</p>
+      </div>
+      {# --- Separator only visible on desktop maybe --- #}
+      <hr class="button-separator">
+      <div class="button-container">
+          <button class="btn reboot-btn" onclick="confirmAction('reboot', 'WARNING: Reboot the Raspberry Pi?')">
+            <i class="fa-solid fa-power-off"></i> Reboot Pi
+          </button>
+           <p class="button-description">Restarts the entire Raspberry Pi device.</p>
+      </div>
+      <div class="button-container">
+          <button class="btn shutdown-btn" onclick="confirmAction('shutdown', 'WARNING: Shut down the Raspberry Pi?')">
+            <i class="fa-solid fa-ban"></i> Shutdown Pi
+          </button>
+           <p class="button-description">Powers off the Raspberry Pi safely.</p>
+      </div>
+    </div> {# End button-group #}
+  </div> {# End panel #}
 
   <!-- SETTINGS & INFO -->
   <div class="panel">
     <h3>Info & Links</h3>
-    <p>
-        Configure settings using the navigation bar above. Check <a href="{{ url_for('logs') }}">Logs</a> and <a href="{{ url_for('diagnostics') }}">Diagnostics</a> for details.
-    </p>
-    <p>
-        Ensure <a href="{{ url_for('drive_auth') }}">Google Drive Authentication</a> is complete before uploading.
-    </p>
-    <p>Consider setting up <strong>udev rules</strong> (see documentation/installer output) for fully automatic SD card processing upon insertion.</p>
+    <p>Configure settings using the navigation bar above. Check <a href="{{ url_for('logs') }}">Logs</a> and <a href="{{ url_for('diagnostics') }}">Diagnostics</a> for details.</p>
+    <p>Ensure <a href="{{ url_for('drive_auth') }}">Google Drive Authentication</a> is complete before uploading.</p>
+    <p>Consider setting up <strong>udev rules</strong> (see documentation/installer output) for fully automatic SD card processing.</p>
   </div>
 {% endblock %}
 
@@ -81,10 +93,11 @@
           document.getElementById('status-space').innerText = data.free_space_mb || 'N/A';
           document.getElementById('status-cpu').innerText = data.cpu_usage !== null ? data.cpu_usage.toFixed(1) : 'N/A';
           document.getElementById('status-mem').innerText = data.mem_usage !== null ? data.mem_usage.toFixed(1) : 'N/A';
-          const sdIconElement = document.getElementById('status-sd-icon'); const sdTextElement = document.getElementById('status-sd-text');
-          if (sdIconElement && sdTextElement) { const sdIcon = sdIconElement.querySelector('i'); if (data.sd_card_mounted) { sdIcon.style.color = 'lightgreen'; sdTextElement.innerText = 'Mounted'; } else { sdIcon.style.color = 'lightcoral'; sdTextElement.innerText = data.sd_card_path_exists ? 'Path Exists (Not Mounted)' : 'Not Detected'; } }
+          const sdIconEl = document.getElementById('status-sd-icon'); const sdTextEl = document.getElementById('status-sd-text');
+          if (sdIconEl && sdTextEl) { const sdIcon = sdIconEl.querySelector('i'); if (data.sd_card_mounted) { sdIcon.style.color = 'lightgreen'; sdTextEl.innerText = 'Mounted'; } else { sdIcon.style.color = 'lightcoral'; sdTextEl.innerText = data.sd_card_path_exists ? 'Path Exists (Not Mounted)' : 'Not Detected'; } }
+          const lastRunEl = document.getElementById('status-last-run'); if (lastRunEl) { lastRunEl.innerText = data.last_offload_run || 'Unknown'; }
         })
-        .catch(error => { console.error('Error fetching status:', error); document.getElementById('status-space').innerText = 'Error'; document.getElementById('status-cpu').innerText = 'Error'; document.getElementById('status-mem').innerText = 'Error'; const sdText = document.getElementById('status-sd-text'); const sdIcon = document.getElementById('status-sd-icon'); if(sdText) sdText.innerText = 'Error'; if(sdIcon) sdIcon.querySelector('i').style.color = 'orange'; });
+        .catch(error => { console.error('Error fetching status:', error); document.getElementById('status-space').innerText = 'Error'; document.getElementById('status-cpu').innerText = 'Error'; document.getElementById('status-mem').innerText = 'Error'; const sdText = document.getElementById('status-sd-text'); if(sdText) sdText.innerText = 'Error'; const sdIcon = document.getElementById('status-sd-icon'); if(sdIcon) sdIcon.querySelector('i').style.color = 'orange'; const lastRun = document.getElementById('status-last-run'); if(lastRun) lastRun.innerText = 'Error'; });
     }
     function confirmAction(action, message) { if (confirm(message)) { window.location.href = "{{ url_for('run_action', action='_ACTION_') }}".replace('_ACTION_', action); } }
     const statusInterval = setInterval(pollStatus, 10000); window.addEventListener('load', pollStatus);

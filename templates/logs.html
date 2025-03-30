@@ -4,35 +4,40 @@
   <h2>System Logs</h2>
 
   <div class="panel">
-    <h3>Offload Script Log (Last 200 lines)</h3>
+    <h3>Offload Script Log <small>(Stateful Copy & Upload Coordination)</small></h3>
+    <p class="log-description">Shows start/end, copy actions, upload triggers, and final status from <code>offload.sh</code> / <code>upload_and_cleanup.sh</code>.</p>
     <pre class="log-output">{{ offload | default('(Log file empty or not found)') }}</pre>
   </div>
 
   <div class="panel">
-    <h3>Rclone Upload Log (Last 200 lines)</h3>
+    <h3>Rclone Upload Log <small>(Detailed File Transfers)</small></h3>
+     <p class="log-description">Shows detailed output from individual `rclone copyto` commands, including transfer stats and errors.</p>
     <pre class="log-output">{{ upload | default('(Log file empty or not found)') }}</pre>
   </div>
 
   <div class="panel">
-    <h3>Retry Offload Log (Last 100 lines)</h3>
+    <h3>Retry Offload Log <small>(Retry Upload Attempts)</small></h3>
+     <p class="log-description">Shows logs specific to the 'Retry Failed Uploads' action.</p>
     <pre class="log-output">{{ retry | default('(Log file empty or not found)') }}</pre>
   </div>
 
   <div class="panel">
-    <h3>Notification Sending Log (Last 100 lines)</h3>
+    <h3>Notification Sending Log <small>(Email & Internal)</small></h3>
+     <p class="log-description">Shows attempts to send email notifications (from `send_notification.py`) and logs internal notifications sent to the UI.</p>
     <pre class="log-output">{{ notification | default('(Log file empty or not found)') }}</pre>
   </div>
 
    <div class="panel">
-    <h3>Eject Script Log (Last 50 lines)</h3>
+    <h3>Eject Script Log <small>(SD Card Unmount)</small></h3>
+     <p class="log-description">Shows attempts and results of unmounting the SD card via the 'Eject' action.</p>
     <pre class="log-output">{{ eject | default('(Log file empty or not found)') }}</pre>
   </div>
 
    <div class="panel">
-    <h3>udev Trigger Log (Last 50 lines)</h3>
+    <h3>udev Trigger Log <small>(Automatic SD Detection)</small></h3>
+     <p class="log-description">Shows when the system detected an SD card insertion (if udev rules are configured) and triggered the offload script.</p>
     <pre class="log-output">{{ udev | default('(Log file empty or not found)') }}</pre>
   </div>
-
 
   <a class="btn btn-secondary" href="{{ url_for('index') }}"><i class="fa fa-arrow-left"></i> Back to Dashboard</a>
 {% endblock %}
