@@ -1,4 +1,6 @@
+#!/usr/bin/env python3
 # /home/pi/pi-offloader/app.py
+
 import os
 import subprocess
 import shutil
@@ -100,6 +102,7 @@ def inject_now():
     return {'now': datetime.datetime.utcnow()}
 
 # --- Helper Functions ---
+
 def load_email_config():
     try:
         with open(EMAIL_CONFIG_PATH, 'r', encoding='utf-8') as f:
@@ -123,6 +126,18 @@ def save_email_config(config):
         flash(f"Error saving email config: {e}", "error")
         add_notification(f"Error saving email config: {e}", "error")
 
+def is_mounted_proc(path):
+    """
+    Checks if the given path is mounted by reading /proc/mounts.
+    """
+    try:
+        with open("/proc/mounts", "r", encoding="utf-8") as f:
+            mounts = f.read()
+        return path in mounts
+    except Exception as e:
+        app.logger.error(f"Error reading /proc/mounts: {e}")
+        return os.path.ismount(path)
+
 def get_system_status():
     status = {}
     # --- Disk Usage for Monitored Directory ---
@@ -139,19 +154,39 @@ def get_system_status():
     status['cpu_usage'] = psutil.cpu_percent(interval=0.5)
     status['mem_usage'] = psutil.virtual_memory().percent
 
-    # --- Dynamic USB/SD Card Detection ---
-    # On Raspberry Pi OS, USB drives and SD cards are usually auto-mounted under /media/pi
+    # --- SD Card Detection ---
+    # First, check the fixed SD_MOUNT_PATH from the .env file.
+    if SD_MOUNT_PATH_FROM_ENV:
+        status['sd_card_path'] = SD_MOUNT_PATH_FROM_ENV
+        if os.path.exists(SD_MOUNT_PATH_FROM_ENV):
+            status['sd_card_path_exists'] = True
+            if is_mounted_proc(SD_MOUNT_PATH_FROM_ENV):
+                status['sd_card_mounted'] = True
+            else:
+                status['sd_card_mounted'] = False
+        else:
+            status['sd_card_path_exists'] = False
+            status['sd_card_mounted'] = False
+    else:
+        status['sd_card_path'] = None
+        status['sd_card_path_exists'] = False
+        status['sd_card_mounted'] = False
+
+    # Additionally, scan the automount base (e.g. /media/pi) to catch other mounted devices.
+    dynamic_mounts = []
     mount_base = "/media/pi" if os.path.exists("/media/pi") else "/media"
-    usb_mounts = []
     try:
         for d in os.listdir(mount_base):
             full_path = os.path.join(mount_base, d)
-            if os.path.ismount(full_path):
-                usb_mounts.append(full_path)
+            if is_mounted_proc(full_path):
+                dynamic_mounts.append(full_path)
     except Exception as e:
-        app.logger.error(f"Error scanning for USB mounts: {e}")
-    status['sd_card_found'] = len(usb_mounts) > 0
-    status['sd_card_paths'] = usb_mounts
+        app.logger.error(f"Error scanning for mounts in {mount_base}: {e}")
+    status['dynamic_mounts'] = dynamic_mounts
+
+    # If the fixed SD_MOUNT_PATH is not mounted but appears in the dynamic list, update it.
+    if SD_MOUNT_PATH_FROM_ENV and (SD_MOUNT_PATH_FROM_ENV in dynamic_mounts):
+        status['sd_card_mounted'] = True
 
     # --- Last Offload Run Timestamp ---
     last_run_file = os.path.join(PROJECT_DIR, "logs/last_run.txt")
@@ -195,7 +230,6 @@ def read_log_file(log_path, lines=100):
 
 # --- Routes ---
 
-# SSE Stream
 @app.route('/stream')
 def stream():
     @stream_with_context
@@ -216,7 +250,6 @@ def stream():
                'X-Accel-Buffering': 'no'}
     return Response(event_stream(), headers=headers)
 
-# Internal Notify
 @app.route('/internal/notify', methods=['POST'])
 def internal_notify():
     auth_token = request.headers.get("X-Notify-Token")
@@ -237,21 +270,18 @@ def internal_notify():
     add_notification(message, msg_type)
     return jsonify({"status": "success"}), 200
 
-# Index
 @app.route('/')
 @auth.login_required
 def index():
     status = get_system_status()
     return render_template('index.html', status=status)
 
-# Status API
 @app.route('/status')
 @auth.login_required
 def status_api():
     status = get_system_status()
     return jsonify(status)
 
-# Diagnostics
 @app.route('/diagnostics')
 @auth.login_required
 def diagnostics():
@@ -287,7 +317,6 @@ def diagnostics():
     }
     return render_template('diagnostics.html', info=diagnostics_info)
 
-# Logs
 @app.route('/logs')
 @auth.login_required
 def logs():
@@ -306,7 +335,6 @@ def logs():
                            notification=notify_log_content,
                            udev=udev_log_content)
 
-# Wifi
 @app.route('/wifi', methods=['GET', 'POST'])
 @auth.login_required
 def wifi():
@@ -383,7 +411,6 @@ def wifi():
         app.logger.info("Wi-Fi scan skipped on non-Linux.")
     return render_template('wifi.html', ssids=sorted(list(set(ssids))))
 
-# Notifications Config
 @app.route('/notifications', methods=['GET', 'POST'])
 @auth.login_required
 def notifications_route():
@@ -399,7 +426,6 @@ def notifications_route():
     config = load_email_config()
     return render_template('notifications.html', config=config)
 
-# Backup Config
 @app.route('/backup_config')
 @auth.login_required
 def backup_config():
@@ -438,7 +464,6 @@ def backup_config():
             add_notification(f"Backup error: {error}", "error")
     return render_template('backup.html', files=backed_up_files, errors=errors, backup_dir=CONFIG_BACKUP_PATH)
 
-# Update System
 @app.route('/update_system')
 @auth.login_required
 def update_system():
@@ -478,7 +503,6 @@ def update_system():
         app.logger.error("Update error", exc_info=True)
     return render_template('update.html', output=update_output)
 
-# Run Action
 @app.route('/run/<action>')
 @auth.login_required
 def run_action(action):
@@ -525,7 +549,6 @@ def run_action(action):
         add_notification(f"Unknown action attempted: {action}", "warning")
     return redirect(url_for('index'))
 
-# Credentials
 @app.route('/credentials', methods=['GET', 'POST'])
 def credentials():
     load_dotenv(dotenv_path, override=True)
@@ -591,7 +614,6 @@ def credentials():
         session.pop('creds_warning_shown')
     return render_template("credentials.html", admin_exists=admin_exists)
 
-# Drive Auth
 @app.route('/drive_auth', methods=['GET', 'POST'])
 @auth.login_required
 def drive_auth():
@@ -633,7 +655,6 @@ def drive_auth():
             app.logger.error("Drive auth URL error", exc_info=True)
         return render_template('drive_auth.html', auth_url=auth_url, error_message=error_message, remote_name=remote_name)
 
-# Test Email
 @app.route('/run/send_test_email')
 @auth.login_required
 def run_send_test_email():
