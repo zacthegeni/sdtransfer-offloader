@@ -125,7 +125,7 @@ def save_email_config(config):
 
 def get_system_status():
     status = {}
-    # Disk Usage
+    # --- Disk Usage for Monitored Directory ---
     try:
         usage = shutil.disk_usage(MONITORED_DISK_PATH)
         status['disk_free'] = usage.free // (1024**2)
@@ -134,22 +134,26 @@ def get_system_status():
     except Exception as e:
         status['free_space_mb'] = f"Disk Error: {e}"
         status['disk_percent'] = 'N/A'
-    # CPU/Mem
+    
+    # --- CPU and Memory Usage ---
     status['cpu_usage'] = psutil.cpu_percent(interval=0.5)
     status['mem_usage'] = psutil.virtual_memory().percent
-    # SD Card Status
-    status['sd_card_mounted'] = False
-    status['sd_card_path_exists'] = False
-    sd_path_to_check = SD_MOUNT_PATH_FROM_ENV
-    if sd_path_to_check:
-        try:
-            status['sd_card_mounted'] = os.path.ismount(sd_path_to_check)
-            status['sd_card_path_exists'] = os.path.exists(sd_path_to_check)
-        except Exception as e:
-            app.logger.error(f"Error checking SD status {sd_path_to_check}: {e}")
-    else:
-        app.logger.debug("SD_MOUNT_PATH not set, skipping SD status check.")
-    # Last Run Timestamp
+
+    # --- Dynamic USB/SD Card Detection ---
+    # On Raspberry Pi OS, USB drives and SD cards are usually auto-mounted under /media/pi
+    mount_base = "/media/pi" if os.path.exists("/media/pi") else "/media"
+    usb_mounts = []
+    try:
+        for d in os.listdir(mount_base):
+            full_path = os.path.join(mount_base, d)
+            if os.path.ismount(full_path):
+                usb_mounts.append(full_path)
+    except Exception as e:
+        app.logger.error(f"Error scanning for USB mounts: {e}")
+    status['sd_card_found'] = len(usb_mounts) > 0
+    status['sd_card_paths'] = usb_mounts
+
+    # --- Last Offload Run Timestamp ---
     last_run_file = os.path.join(PROJECT_DIR, "logs/last_run.txt")
     status['last_offload_run'] = "Never/Unknown"
     try:
