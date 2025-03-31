@@ -2,6 +2,7 @@
 # install_sdtransfer.sh
 # One-Click Installer for SDTransfer Offloader
 # Adapted for user 'zmakey' and project directory '/home/zmakey/sdtransfer-offloader'
+# CORRECTED: Removed 'ps aux | grep ...' from apt install line.
 
 set -e # Exit immediately if any command fails
 export DEBIAN_FRONTEND=noninteractive # Avoid prompts during installations
@@ -37,7 +38,9 @@ apt upgrade -y
 
 echo "Installing required system packages..."
 # Added python3-venv just in case, removed hostapd/dnsmasq unless needed for AP mode
-apt install -y git curl unzip python3-pip python3-venv python3-flask nginx rclone ps aux | grep -E 'apt|dpkg'
+# --- THIS IS THE CORRECTED LINE ---
+apt install -y git curl unzip python3-pip python3-venv python3-flask nginx rclone
+# ----------------------------------
 # Ensure psutil system deps are met if needed (less common now)
 # apt install -y python3-dev gcc
 
