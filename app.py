@@ -4,38 +4,35 @@ import subprocess
 import shutil
 import json
 import psutil
-import datetime # Make sure this is imported
+import datetime
 import secrets
-import time # For SSE sleep
-import queue # For notification queue
+import time
+import queue
 from flask import (
     Flask, request, render_template, redirect, url_for,
-    jsonify, flash, Response, stream_with_context, session # Added session
+    jsonify, flash, Response, stream_with_context, session
 )
 from flask_httpauth import HTTPBasicAuth
 from dotenv import load_dotenv
 import sys
-import logging # Use Flask's logger
+import logging
 
 # --- Load Environment & Basic Setup ---
 dotenv_path = os.path.join(os.path.dirname(__file__), '.env')
 load_dotenv(dotenv_path)
 
 app = Flask(__name__)
-# Load secret key from .env or generate one (essential for sessions/flash messages)
 app.secret_key = os.getenv("FLASK_SECRET_KEY", secrets.token_hex(16))
 if app.secret_key == 'replace_with_your_strong_random_flask_secret_key':
-     app.logger.warning("FLASK_SECRET_KEY is set to the default placeholder! Please generate a real secret key in .env.")
+    app.logger.warning("FLASK_SECRET_KEY is set to placeholder! Generate a real key in .env.")
 auth = HTTPBasicAuth()
 
 # --- Notification Queue ---
 notification_queue = queue.Queue()
-INTERNAL_NOTIFY_TOKEN = os.getenv("INTERNAL_NOTIFY_TOKEN", secrets.token_hex(8)) # Simple secret for internal endpoint
+INTERNAL_NOTIFY_TOKEN = os.getenv("INTERNAL_NOTIFY_TOKEN", secrets.token_hex(8))
 if INTERNAL_NOTIFY_TOKEN == 'replace_with_your_generated_secure_random_notify_token':
-     app.logger.warning("INTERNAL_NOTIFY_TOKEN is set to the default placeholder! Please generate a real token in .env for script notifications.")
-     # Use a temporary one if placeholder is detected, though scripts might fail if app restarts
-     INTERNAL_NOTIFY_TOKEN = secrets.token_hex(8)
-
+    app.logger.warning("INTERNAL_NOTIFY_TOKEN is set to placeholder! Generate a real token.")
+    INTERNAL_NOTIFY_TOKEN = secrets.token_hex(8) # Use temporary one
 
 # --- Configuration from .env ---
 ADMIN_USERNAME = os.getenv("ADMIN_USERNAME")
@@ -43,11 +40,11 @@ ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD")
 UPLOAD_LOG = os.getenv("UPLOAD_LOG", "/home/pi/pi-offloader/logs/rclone.log")
 OFFLOAD_LOG = os.getenv("OFFLOAD_LOG", "/home/pi/pi-offloader/logs/offload.log")
 EMAIL_CONFIG_PATH = os.getenv("EMAIL_CONFIG_PATH", "/home/pi/pi-offloader/email_config.json")
-MONITORED_DISK_PATH = os.getenv("MONITORED_DISK_PATH", "/home/pi/footage") # Default to footage if not set
+MONITORED_DISK_PATH = os.getenv("MONITORED_DISK_PATH", "/home/pi/footage")
 CONFIG_BACKUP_PATH = os.getenv("CONFIG_BACKUP_PATH", "/home/pi/config_backups")
 RCLONE_CONFIG_PATH = os.getenv("RCLONE_CONFIG_PATH", "/home/pi/.config/rclone/rclone.conf")
-SD_MOUNT_PATH_FROM_ENV = os.getenv("SD_MOUNT_PATH") # Get path from env, might be None
-PROJECT_DIR = os.path.dirname(__file__) # Get the directory where app.py is located
+SD_MOUNT_PATH_FROM_ENV = os.getenv("SD_MOUNT_PATH")
+PROJECT_DIR = os.path.dirname(__file__)
 
 # Ensure log directory exists
 os.makedirs(os.path.join(PROJECT_DIR, "logs"), exist_ok=True)
@@ -56,201 +53,144 @@ os.makedirs(os.path.join(PROJECT_DIR, "logs"), exist_ok=True)
 logging.basicConfig(level=logging.INFO)
 app.logger.setLevel(logging.INFO)
 
-
 # --- Helper: Add Notification ---
 def add_notification(message, msg_type="info"):
-    """Adds a notification message to the queue."""
-    app.logger.info(f"Queueing notification: [{msg_type}] {message}") # Log to console/gunicorn log
+    app.logger.info(f"Queueing notification: [{msg_type}] {message}")
     try:
         notification_queue.put_nowait({"type": msg_type, "message": message})
     except queue.Full:
-        app.logger.warning("Notification queue is full, dropping message.")
-
+        app.logger.warning("Notification queue full, dropping message.")
 
 # --- Authentication ---
 @auth.verify_password
 def verify_password(username, password):
-    # Reload from .env inside the function for potentially updated values
     load_dotenv(dotenv_path, override=True)
     current_admin_user = os.getenv("ADMIN_USERNAME")
     current_admin_pass = os.getenv("ADMIN_PASSWORD")
-
     if not current_admin_user or not current_admin_pass:
-        # Allow access if trying to reach essential setup/utility pages
-        if request.endpoint in ['credentials', 'static', 'stream', 'internal_notify', 'index']: # Allow index too
-             return "temp_user" # Return a dummy user to bypass initial auth for setup
+        if request.endpoint in ['credentials', 'static', 'stream', 'internal_notify', 'index']:
+            return "temp_user"
         else:
-            return False # Deny access to other pages, handled by before_request
-
-    # Check provided credentials against current .env values
+            return False
     if username == current_admin_user and password == current_admin_pass:
-        return username # Return username on success
+        return username
     return False
 
 # --- Before Request Hook for Initial Setup ---
 @app.before_request
 def check_initial_setup():
-    load_dotenv(dotenv_path, override=True) # Ensure latest env is loaded
+    load_dotenv(dotenv_path, override=True)
     current_admin_user = os.getenv("ADMIN_USERNAME")
     current_admin_pass = os.getenv("ADMIN_PASSWORD")
-
-    # Check if credentials are set
     if not current_admin_user or not current_admin_pass:
-        # Define pages accessible without login during setup
         allowed_endpoints = ['credentials', 'static', 'stream', 'internal_notify']
-        # Allow index page briefly so user can click 'Credentials' link
         if request.endpoint == 'index':
-            # Use session to flash message only once per browser session if not logged in
             if 'creds_warning_shown' not in session:
-                flash("Admin credentials are not set. Please set them via the 'Credentials' page.", "warning")
-                session['creds_warning_shown'] = True # Mark as shown
-            return # Allow index page to load
-        # Redirect any other page to credentials setup
+                flash("Admin credentials not set. Please set via 'Credentials' page.", "warning")
+                session['creds_warning_shown'] = True
+            return
         elif request.endpoint not in allowed_endpoints:
             return redirect(url_for('credentials'))
-
-    # If credentials *are* set, clear the warning flag if it exists
     elif 'creds_warning_shown' in session:
-         session.pop('creds_warning_shown')
-
+        session.pop('creds_warning_shown')
 
 # --- Context Processor for Templates ---
 @app.context_processor
 def inject_now():
-    """Injects the current UTC time into template contexts."""
     return {'now': datetime.datetime.utcnow()}
-
 
 # --- Helper Functions ---
 def load_email_config():
     try:
-        with open(EMAIL_CONFIG_PATH, 'r') as f:
+        with open(EMAIL_CONFIG_PATH, 'r', encoding='utf-8') as f:
             return json.load(f)
     except FileNotFoundError:
         return {"smtp_server": "", "smtp_port": "", "smtp_username": "", "smtp_password": "", "target_email": ""}
     except Exception as e:
-        app.logger.error(f"Error loading email config from {EMAIL_CONFIG_PATH}: {e}")
+        app.logger.error(f"Error loading email config {EMAIL_CONFIG_PATH}: {e}")
         flash(f"Error loading email config: {e}", "error")
         add_notification(f"Error loading email config: {e}", "error")
         return {"smtp_server": "", "smtp_port": "", "smtp_username": "", "smtp_password": "", "target_email": ""}
 
 def save_email_config(config):
     try:
-        with open(EMAIL_CONFIG_PATH, 'w') as f:
+        with open(EMAIL_CONFIG_PATH, 'w', encoding='utf-8') as f:
             json.dump(config, f, indent=4)
-        flash("Email settings saved successfully.", "success")
+        flash("Email settings saved.", "success")
         add_notification("Email settings saved.", "success")
     except Exception as e:
-        app.logger.error(f"Error saving email config to {EMAIL_CONFIG_PATH}: {e}")
+        app.logger.error(f"Error saving email config {EMAIL_CONFIG_PATH}: {e}")
         flash(f"Error saving email config: {e}", "error")
         add_notification(f"Error saving email config: {e}", "error")
 
 def get_system_status():
     status = {}
-    # --- Disk Usage ---
+    # Disk Usage
     try:
         usage = shutil.disk_usage(MONITORED_DISK_PATH)
-        status['disk_total'] = usage.total // (1024**2)
-        status['disk_used'] = usage.used // (1024**2)
         status['disk_free'] = usage.free // (1024**2)
         status['disk_percent'] = int((usage.used / usage.total) * 100) if usage.total > 0 else 0
         status['free_space_mb'] = f"{status['disk_free']} MB free"
-    except FileNotFoundError:
-        status['free_space_mb'] = f"Path not found: {MONITORED_DISK_PATH}"
-        status['disk_percent'] = 'N/A'
     except Exception as e:
-        status['free_space_mb'] = f"Error reading disk: {e}"
-        status['disk_percent'] = 'N/A'
-
-    # --- CPU/Memory ---
-    status['cpu_usage'] = psutil.cpu_percent(interval=0.5)
-    status['mem_usage'] = psutil.virtual_memory().percent
-
-    # --- SD Card Status ---
-    status['sd_card_mounted'] = False; status['sd_card_path_exists'] = False # Default
-    sd_path_to_check = SD_MOUNT_PATH_FROM_ENV # Use the variable read at startup
-    if sd_path_to_check: # Only check if the path was actually set in .env
+        status['free_space_mb'] = f"Disk Error: {e}"; status['disk_percent'] = 'N/A'
+    # CPU/Mem
+    status['cpu_usage'] = psutil.cpu_percent(interval=0.5); status['mem_usage'] = psutil.virtual_memory().percent
+    # SD Card Status
+    status['sd_card_mounted'] = False; status['sd_card_path_exists'] = False
+    sd_path_to_check = SD_MOUNT_PATH_FROM_ENV
+    if sd_path_to_check:
         try:
             status['sd_card_mounted'] = os.path.ismount(sd_path_to_check)
             status['sd_card_path_exists'] = os.path.exists(sd_path_to_check)
-        except Exception as e:
-            app.logger.error(f"Error checking SD mount status for {sd_path_to_check}: {e}")
-            # Keep defaults as False
-    else:
-        # If SD_MOUNT_PATH was commented out/empty, status remains Not Detected
-        app.logger.debug("SD_MOUNT_PATH not set in env, skipping SD status check.")
-
-
-    # --- Last Run Timestamp ---
-    last_run_file = os.path.join(PROJECT_DIR, "logs/last_run.txt")
-    status['last_offload_run'] = "Never or Unknown" # Default
+        except Exception as e: app.logger.error(f"Error checking SD status {sd_path_to_check}: {e}")
+    else: app.logger.debug("SD_MOUNT_PATH not set, skipping SD status check.")
+    # Last Run Timestamp
+    last_run_file = os.path.join(PROJECT_DIR, "logs/last_run.txt"); status['last_offload_run'] = "Never/Unknown"
     try:
         if os.path.exists(last_run_file):
-            with open(last_run_file, 'r') as f:
-                timestamp_str = f.read().strip()
-                status['last_offload_run'] = timestamp_str # Keep it simple
-    except Exception as e:
-        app.logger.warning(f"Could not read last run timestamp file {last_run_file}: {e}")
-        status['last_offload_run'] = "Error reading status"
-
+            with open(last_run_file, 'r', encoding='utf-8') as f: status['last_offload_run'] = f.read().strip()
+    except Exception as e: app.logger.warning(f"Could not read last run file {last_run_file}: {e}"); status['last_offload_run'] = "Read Error"
     return status
 
-# --- CORRECTED read_log_file function ---
 def read_log_file(log_path, lines=100):
-    if not os.path.exists(log_path):
-        return f"Log file not found: {log_path}"
+    if not os.path.exists(log_path): return f"Log file not found: {log_path}"
     try:
-        # Use tail for efficiency if available (Linux)
         if sys.platform.startswith('linux'):
-            # Use run instead of check_output to avoid raising error on non-zero exit
-            process = subprocess.run(['tail', '-n', str(lines), log_path], capture_output=True, text=True, check=False)
-            # Return stdout even if tail exits non-zero (e.g., file shorter than N lines)
+            process = subprocess.run(['tail', '-n', str(lines), log_path], capture_output=True, text=True, check=False, encoding='utf-8', errors='ignore')
             return process.stdout if process.stdout else "(Log empty or tail error)"
-        else: # Fallback for non-Linux (Windows)
+        else:
+            # Fallback for non-Linux (Windows) with corrected structure
             log_lines = []
             try:
                  with open(log_path, 'r', encoding='utf-8', errors='ignore') as f:
                      log_lines = f.readlines()
                  return "".join(log_lines[-lines:])
             except Exception as e_read:
-                 # Handle error if fallback read fails too
                  app.logger.error(f"Fallback read failed for {log_path}: {e_read}")
                  return f"Could not read log file ({log_path}): {e_read}"
-    except FileNotFoundError: # Handle tail command not found
+    except FileNotFoundError:
         app.logger.warning("tail command not found, falling back to Python read.")
         log_lines = []
         try:
-            with open(log_path, 'r', encoding='utf-8', errors='ignore') as f:
-                log_lines = f.readlines()
+            with open(log_path, 'r', encoding='utf-8', errors='ignore') as f: log_lines = f.readlines()
             return "".join(log_lines[-lines:])
-        except Exception as e_read:
-             app.logger.error(f"Fallback read failed for {log_path}: {e_read}")
-             return f"Could not read log file ({log_path}): {e_read}"
-    except Exception as e_general: # Catch other potential errors (e.g., permissions)
-        app.logger.error(f"Error reading log file {log_path}: {e_general}")
-        return f"Error reading log file ({log_path}): {e_general}"
-# --- End CORRECTED read_log_file function ---
+        except Exception as e_read: app.logger.error(f"Fallback read failed for {log_path}: {e_read}"); return f"Could not read log file ({log_path}): {e_read}"
+    except Exception as e_general: app.logger.error(f"Error reading log file {log_path}: {e_general}"); return f"Error reading log file ({log_path}): {e_general}"
 
 # --- Routes ---
 
-# --- Notification Stream Endpoint (SSE) ---
+# SSE Stream
 @app.route('/stream')
 def stream():
     @stream_with_context
     def event_stream():
         while True:
-            try:
-                message_data = notification_queue.get(timeout=60)
-                sse_data = f"data: {json.dumps(message_data)}\n\n"
-                yield sse_data
-                notification_queue.task_done()
+            try: message_data = notification_queue.get(timeout=60); yield f"data: {json.dumps(message_data)}\n\n"; notification_queue.task_done()
             except queue.Empty: yield ": keepalive\n\n"
-            except Exception as e: app.logger.error(f"Error in SSE stream: {e}"); yield f"event: error\ndata: {json.dumps({'message': 'Stream error occurred'})}\n\n"; time.sleep(5)
+            except Exception as e: app.logger.error(f"SSE stream error: {e}"); yield f"event: error\ndata: {json.dumps({'message': 'Stream error'})}\n\n"; time.sleep(5)
+    headers = {'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', 'X-Accel-Buffering': 'no'}; return Response(event_stream(), headers=headers)
 
-    headers = {'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', 'X-Accel-Buffering': 'no'}
-    return Response(event_stream(), headers=headers)
-
-# --- Internal Notification Endpoint (for scripts) ---
+# Internal Notify
 @app.route('/internal/notify', methods=['POST'])
 def internal_notify():
     auth_token = request.headers.get("X-Notify-Token"); is_local = request.remote_addr in ('127.0.0.1', '::1'); allow_access = is_local or (auth_token == INTERNAL_NOTIFY_TOKEN and INTERNAL_NOTIFY_TOKEN != 'replace_with_your_generated_secure_random_notify_token')
@@ -260,17 +200,17 @@ def internal_notify():
     if not message: app.logger.warning(f"Notify missing message from {request.remote_addr}"); return jsonify({"status": "error", "message": "Missing 'message'"}), 400
     add_notification(message, msg_type); return jsonify({"status": "success"}), 200
 
-
-# --- Regular Flask Routes ---
-
+# Index
 @app.route('/')
 @auth.login_required
 def index(): status = get_system_status(); return render_template('index.html', status=status)
 
+# Status API
 @app.route('/status')
 @auth.login_required
 def status_api(): status = get_system_status(); return jsonify(status)
 
+# Diagnostics
 @app.route('/diagnostics')
 @auth.login_required
 def diagnostics():
@@ -285,13 +225,14 @@ def diagnostics():
     diagnostics_info = { "uptime": uptime, "cpu_usage": f"{status.get('cpu_usage', 'N/A')}%", "memory_total": f"{mem.total // (1024**2)} MB", "memory_used": f"{mem.used // (1024**2)} MB", "memory_percent": f"{mem.percent}%", "bytes_sent": f"{net.bytes_sent:,}", "bytes_recv": f"{net.bytes_recv:,}", "disk_usage_monitored_path": disk_info, "monitored_path": MONITORED_DISK_PATH }
     return render_template('diagnostics.html', info=diagnostics_info)
 
+# Logs
 @app.route('/logs')
 @auth.login_required
 def logs():
     log_dir = os.path.join(PROJECT_DIR, "logs"); upload_log_content = read_log_file(UPLOAD_LOG, lines=200); offload_log_content = read_log_file(OFFLOAD_LOG, lines=200); retry_log_content = read_log_file(os.path.join(log_dir, "retry_offload.log"), lines=100); eject_log_content = read_log_file(os.path.join(log_dir, "eject.log"), lines=50); notify_log_content = read_log_file(os.path.join(log_dir, "notification.log"), lines=100); udev_log_content = read_log_file(os.path.join(log_dir, "udev_trigger.log"), lines=50)
     return render_template('logs.html', upload=upload_log_content, offload=offload_log_content, retry=retry_log_content, eject=eject_log_content, notification=notify_log_content, udev=udev_log_content)
 
-# --- CORRECTED WIFI ROUTE ---
+# Wifi
 @app.route('/wifi', methods=['GET', 'POST'])
 @auth.login_required
 def wifi():
@@ -314,58 +255,63 @@ def wifi():
         except Exception as e: flash(f"Unexpected error: {e}", "error"); add_notification(f"Error configuring Wi-Fi: {e}", "error"); app.logger.error(f"WiFi config failed", exc_info=True)
         return redirect(url_for('wifi'))
 
-    # --- GET Request ---
+    # GET Request
     ssids = []
     if sys.platform.startswith('linux'):
         try:
-            scan_cmd = ['sudo', '/sbin/iwlist', 'wlan0', 'scan']
-            scan_result = subprocess.run(scan_cmd, capture_output=True, text=True, timeout=20)
+            scan_cmd = ['sudo', '/sbin/iwlist', 'wlan0', 'scan']; scan_result = subprocess.run(scan_cmd, capture_output=True, text=True, timeout=20)
             if scan_result.returncode == 0:
                 for line in scan_result.stdout.splitlines():
-                    line_strip = line.strip()
+                    line_strip = line.strip();
                     if "ESSID:" in line_strip:
-                        # --- Corrected try/except block ---
-                        try:
-                            current_ssid = line_strip.split('"')[1]
-                            if current_ssid and current_ssid != "\\x00" and current_ssid not in ssids:
-                                ssids.append(current_ssid)
-                        except IndexError:
-                            # This handles lines where ESSID isn't quoted correctly
-                            app.logger.debug(f"Could not parse SSID from line: {line_strip}")
-                            # No 'pass' needed here, just continue the loop
-                        # --- End corrected block ---
-            else:
-                app.logger.warning(f"iwlist scan failed. Code: {scan_result.returncode}, Error: {scan_result.stderr}")
-        # Outer try...except block for scanning process
+                        try: current_ssid = line_strip.split('"')[1];
+                        if current_ssid and current_ssid != "\\x00" and current_ssid not in ssids: ssids.append(current_ssid)
+                        except IndexError: app.logger.debug(f"Could not parse SSID from: {line_strip}"); pass # Correctly handled now
+            else: app.logger.warning(f"iwlist scan failed. Code: {scan_result.returncode}, Error: {scan_result.stderr}")
         except FileNotFoundError: app.logger.error("iwlist command not found.")
         except subprocess.TimeoutExpired: app.logger.warning("iwlist scan timed out.")
         except Exception as e: app.logger.error(f"Error scanning Wi-Fi: {e}", exc_info=True)
-    else:
-        app.logger.info("Wi-Fi scan skipped on non-Linux.")
-
+    else: app.logger.info("Wi-Fi scan skipped on non-Linux.")
     return render_template('wifi.html', ssids=sorted(list(set(ssids))))
-# --- End of CORRECTED WIFI ROUTE ---
 
+# Notifications Config
 @app.route('/notifications', methods=['GET', 'POST'])
 @auth.login_required
 def notifications_route(): # Renamed function
     if request.method == 'POST': config = { "smtp_server": request.form.get("smtp_server", ""), "smtp_port": request.form.get("smtp_port", ""), "smtp_username": request.form.get("smtp_username", ""), "smtp_password": request.form.get("smtp_password", ""), "target_email": request.form.get("target_email", "") }; save_email_config(config)
     config = load_email_config(); return render_template('notifications.html', config=config)
 
+# Backup Config
 @app.route('/backup_config')
 @auth.login_required
 def backup_config():
     try: os.makedirs(CONFIG_BACKUP_PATH, exist_ok=True)
     except OSError as e: flash(f"Error creating backup dir: {e}", "error"); add_notification(f"Backup Error: Cannot create dir", "error"); return redirect(url_for('index'))
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S"); files_to_backup = [ os.path.join(PROJECT_DIR, '.env'), EMAIL_CONFIG_PATH, RCLONE_CONFIG_PATH ]; backed_up_files, errors = [], []
+    # --- Corrected Backup Loop ---
     for file_path in files_to_backup:
-        if file_path and os.path.exists(file_path): base_name = os.path.basename(file_path); dest_path = os.path.join(CONFIG_BACKUP_PATH, f"{base_name}.{timestamp}.bak"); try: shutil.copy2(file_path, dest_path); backed_up_files.append(dest_path); except Exception as e: errors.append(f"Backup failed for {file_path}: {e}"); app.logger.error(f"Backup error: {e}")
-        else: errors.append(f"Skipped backup: {file_path} not found/invalid.")
+        if file_path and os.path.exists(file_path):
+            base_name = os.path.basename(file_path)
+            dest_path = os.path.join(CONFIG_BACKUP_PATH, f"{base_name}.{timestamp}.bak")
+            try:
+                shutil.copy2(file_path, dest_path) # Copy file
+                backed_up_files.append(dest_path)
+                app.logger.info(f"Backed up {file_path} to {dest_path}")
+            except Exception as e:
+                error_msg = f"Failed backup for {file_path}: {e}" # Store error message
+                errors.append(error_msg)
+                app.logger.error(error_msg) # Log the error
+        else:
+            error_msg = f"Skipped backup: {file_path} not found/invalid." # Store error message
+            errors.append(error_msg)
+            app.logger.warning(error_msg) # Log warning
+    # --- End Corrected Loop ---
     if backed_up_files: flash(f"Backed up {len(backed_up_files)} files to {CONFIG_BACKUP_PATH}", "success"); add_notification(f"Config backup OK ({len(backed_up_files)} files).", "success")
     if errors:
-        for error in errors: flash(error, "error"); add_notification(f"Backup error: {error}", "error")
+        for error in errors: flash(error, "error"); add_notification(f"Backup error: {error}", "error") # Notify each error
     return render_template('backup.html', files=backed_up_files, errors=errors, backup_dir=CONFIG_BACKUP_PATH)
 
+# Update System
 @app.route('/update_system')
 @auth.login_required
 def update_system():
@@ -378,10 +324,11 @@ def update_system():
             flash("requirements.txt changed, installing...", "info"); add_notification("Installing updated requirements...", "info"); pip_cmd = [os.path.join(PROJECT_DIR, 'venv/bin/pip'), 'install', '-r', 'requirements.txt']; result_pip = subprocess.run(pip_cmd, cwd=PROJECT_DIR, capture_output=True, text=True, check=True, timeout=180)
             update_output += f"Pip Install:\n{result_pip.stdout}\n{result_pip.stderr}\n\n"; flash("Pip install OK.", "success"); add_notification("Pip requirements OK.", "success")
         add_notification("Attempting service restart...", "info"); restart_cmd = ['sudo', 'systemctl', 'restart', 'pi-gunicorn.service']; result_restart = subprocess.run(restart_cmd, capture_output=True, text=True, check=True, timeout=20)
-        update_output += f"Service Restart:\n{result_restart.stdout}\n{result_restart.stderr}\n"; flash("Gunicorn restart initiated.", "success"); add_notification("Gunicorn restart OK.", "success") # Corrected notification
+        update_output += f"Service Restart:\n{result_restart.stdout}\n{result_restart.stderr}\n"; flash("Gunicorn restart initiated.", "success"); add_notification("Gunicorn restart OK.", "success")
     except Exception as e: errmsg=f"Update Error: {e}"; update_output += errmsg; flash(errmsg, "error"); add_notification(f"System update failed: {e}", "error"); success = False; app.logger.error(f"Update error", exc_info=True)
     return render_template('update.html', output=update_output)
 
+# Run Action
 @app.route('/run/<action>')
 @auth.login_required
 def run_action(action):
@@ -398,6 +345,7 @@ def run_action(action):
     else: flash(f"Unknown action: {action}", "error"); add_notification(f"Unknown action attempted: {action}", "warning")
     return redirect(url_for('index'))
 
+# Credentials
 @app.route('/credentials', methods=['GET', 'POST'])
 def credentials():
     load_dotenv(dotenv_path, override=True); current_admin_user = os.getenv("ADMIN_USERNAME"); current_admin_pass = os.getenv("ADMIN_PASSWORD"); admin_exists = bool(current_admin_user and current_admin_pass)
@@ -409,23 +357,27 @@ def credentials():
             if old_user != current_admin_user or old_pass != current_admin_pass: flash("Current credentials incorrect.", "error"); return render_template("credentials.html", admin_exists=True)
         env_lines = [];
         if os.path.exists(dotenv_path):
-            with open(dotenv_path, "r") as f: env_lines = f.readlines()
+            try:
+                with open(dotenv_path, "r", encoding='utf-8') as f: env_lines = f.readlines()
+            except Exception as e: app.logger.error(f"Error reading .env: {e}"); flash("Error reading current config.", "error"); return render_template("credentials.html", admin_exists=admin_exists)
         updated_lines = []; found_user, found_pass = False, False
         for line in env_lines:
             clean_line = line.strip();
+            if clean_line.startswith("#"): updated_lines.append(line); continue # Preserve comments
             if clean_line.startswith("ADMIN_USERNAME="): updated_lines.append(f"ADMIN_USERNAME={new_user}\n"); found_user = True
             elif clean_line.startswith("ADMIN_PASSWORD="): updated_lines.append(f"ADMIN_PASSWORD={new_pass}\n"); found_pass = True
             else: updated_lines.append(line)
         if not found_user: updated_lines.append(f"ADMIN_USERNAME={new_user}\n")
         if not found_pass: updated_lines.append(f"ADMIN_PASSWORD={new_pass}\n")
         try:
-            with open(dotenv_path, "w") as f: f.writelines(updated_lines)
+            with open(dotenv_path, "w", encoding='utf-8') as f: f.writelines(updated_lines)
             load_dotenv(dotenv_path, override=True); global ADMIN_USERNAME, ADMIN_PASSWORD; ADMIN_USERNAME = os.getenv("ADMIN_USERNAME"); ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD")
             flash("Credentials updated. Restart service if login issues persist.", "success"); add_notification("Admin credentials updated.", "success"); return redirect(url_for("index"))
         except Exception as e: flash(f"Error writing .env: {e}", "error"); add_notification("Error saving credentials.", "error"); app.logger.error(f"Error writing .env", exc_info=True); return render_template("credentials.html", admin_exists=admin_exists)
     if 'creds_warning_shown' in session: session.pop('creds_warning_shown')
     return render_template("credentials.html", admin_exists=admin_exists)
 
+# Drive Auth
 @app.route('/drive_auth', methods=['GET', 'POST'])
 @auth.login_required
 def drive_auth():
@@ -451,7 +403,7 @@ def drive_auth():
         except Exception as e: error_message = f"Error generating auth URL: {e}"; flash(error_message, "error"); add_notification(f"Drive Auth URL Error: {e}", "error"); app.logger.error(f"Drive auth URL error", exc_info=True)
         return render_template('drive_auth.html', auth_url=auth_url, error_message=error_message, remote_name=remote_name)
 
-# --- Test Email Route ---
+# Test Email
 @app.route('/run/send_test_email')
 @auth.login_required
 def run_send_test_email():
@@ -468,5 +420,4 @@ def run_send_test_email():
 if __name__ == '__main__':
     app.logger.info(f"Starting Flask App. Internal Notify Token: {INTERNAL_NOTIFY_TOKEN[:4]}... (hidden)")
     use_debug = os.getenv('FLASK_DEBUG', 'false').lower() in ['true', '1']
-    # Run with reloader if debugging, disable threaded in that case
     app.run(host='0.0.0.0', port=5000, debug=use_debug, use_reloader=use_debug, threaded=not use_debug)
