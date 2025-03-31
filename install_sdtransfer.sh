@@ -1,8 +1,8 @@
 #!/bin/bash
 # install_sdtransfer.sh
 # One-Click Installer for SDTransfer Offloader
-# Adapted for user 'zmakey' and project directory '/home/zmakey/sdtransfer-offloader'
-# Includes fix for 'ps aux' apt error and uses Python virtual environment (venv).
+# Adapted for user 'zmakey', project directory '/home/zmakey/sdtransfer-offloader'
+# Includes Python Virtual Environment setup (PEP 668 fix)
 
 set -e # Exit immediately if any command fails
 export DEBIAN_FRONTEND=noninteractive # Avoid prompts during installations
@@ -10,7 +10,10 @@ export DEBIAN_FRONTEND=noninteractive # Avoid prompts during installations
 # --- Configuration ---
 PROJECT_USER="zmakey"
 PROJECT_DIR="/home/${PROJECT_USER}/sdtransfer-offloader"
-PYTHON_EXECUTABLE="/usr/bin/python3" # Path to system Python 3
+PYTHON_EXECUTABLE="/usr/bin/python3"
+# Gunicorn will be installed inside the virtual environment
+GUNICORN_EXECUTABLE="${PROJECT_DIR}/venv/bin/gunicorn"
+VENV_DIR="${PROJECT_DIR}/venv"
 
 # --- Script Start ---
 echo "SDTransfer Offloader Installer for user '${PROJECT_USER}'"
@@ -33,47 +36,49 @@ echo "Updating system package list..."
 apt update
 
 echo "Upgrading existing packages (this may take a while)..."
-apt upgrade -y
+# apt upgrade -y # Optionally skip this for faster install, run manually later
 
 echo "Installing required system packages..."
-# Corrected apt install line - removed 'ps aux | grep...'
-# Added python3-venv, needed to create virtual environments.
-apt install -y git curl unzip python3-pip python3-venv nginx rclone
-# Optional: Install build tools if psutil install fails later (unlikely on newer systems)
-# apt install -y python3-dev gcc
+# Added python3-venv for virtual environment support
+apt install -y git curl unzip python3-pip python3-venv python3-flask nginx rclone
+# Removed the bad 'ps aux | grep...' part from here
 
-# --- Setup Python Virtual Environment ---
-echo "Setting up Python virtual environment in ${PROJECT_DIR}/venv..."
-# Create the virtual environment using system python3
-${PYTHON_EXECUTABLE} -m venv ${PROJECT_DIR}/venv
-echo "Virtual environment created."
+echo "Setting up project directories..."
+mkdir -p "${PROJECT_DIR}/templates"
+mkdir -p "${PROJECT_DIR}/static"
+mkdir -p "${PROJECT_DIR}/footage/videos" # Subdirs for local storage
+mkdir -p "${PROJECT_DIR}/footage/photos"
+mkdir -p "${PROJECT_DIR}/config_backups"
+mkdir -p "${PROJECT_DIR}/logs" # Specific directory for logs
 
-# Activate the virtual environment and install packages within it
-echo "Activating virtual environment and installing Python packages (Flask, Gunicorn, etc.)..."
-# Use 'source' to activate in the current shell process
-source ${PROJECT_DIR}/venv/bin/activate
+echo "Setting initial ownership (before venv creation)..."
+chown -R "${PROJECT_USER}:${PROJECT_USER}" "${PROJECT_DIR}"
 
-# Upgrade pip within the venv
+# --- Python Virtual Environment Setup ---
+echo "Creating Python virtual environment at ${VENV_DIR}..."
+# Run python3 -m venv as the target user to avoid permission issues later
+sudo -u "${PROJECT_USER}" ${PYTHON_EXECUTABLE} -m venv "${VENV_DIR}"
+
+echo "Activating virtual environment and installing Python packages..."
+# Activate venv, install packages, then deactivate
+# Note: Activation is only for this subshell block
+source "${VENV_DIR}/bin/activate"
 pip install --upgrade pip
-
-# Install required packages within the venv
 pip install flask Flask-HTTPAuth python-dotenv gunicorn psutil
-
-# Deactivate the virtual environment (the service will activate it as needed)
 deactivate
-echo "Python packages installed successfully in virtual environment."
-# --- End Python Virtual Environment Setup ---
-
+echo "Python packages installed in virtual environment."
+# --- End Virtual Environment Setup ---
 
 echo "Checking if rclone is installed..."
 if ! command -v rclone &> /dev/null; then
-    echo "Installing rclone (this shouldn't be needed as apt should have installed it)..."
+    echo "Installing rclone..."
+    # The apt install above should handle this now, but keep check just in case
     curl https://rclone.org/install.sh | bash
 else
-    echo "rclone is installed."
+    echo "rclone already installed via apt or previously."
 fi
 
-# Manual Rclone Configuration Reminder
+# Manual Rclone Configuration Reminder (Keep this section)
 echo "---------------------------------------------------------------------"
 echo "IMPORTANT: Rclone Configuration Needed!"
 echo "---------------------------------------------------------------------"
@@ -84,32 +89,21 @@ echo "  rclone config --config \"${PROJECT_DIR}/rclone.conf\""
 echo ""
 echo "Follow the prompts to add a Google Drive remote. Make sure to:"
 echo "1. Name the remote 'gdrive'."
-echo "2. Complete the OAuth process (use the Web UI's Drive Auth page later)."
+echo "2. Complete the OAuth process in your browser OR via the Web UI later."
 echo "3. Confirm saving the configuration to '${PROJECT_DIR}/rclone.conf'."
-echo "   (The main goal here is creating the [gdrive] section)."
 echo "---------------------------------------------------------------------"
-read -p "Press Enter to continue after reviewing rclone instructions..."
+read -p "Press Enter to continue after you have configured rclone (or if already done)..."
 
-# Verify rclone config file location (optional check)
+# Re-verify rclone config file location
 RCLONE_CONFIG_FILE="${PROJECT_DIR}/rclone.conf"
 if [ ! -f "${RCLONE_CONFIG_FILE}" ]; then
-     echo "Warning: Rclone config file '${RCLONE_CONFIG_FILE}' not found yet."
-     echo "Make sure to run 'rclone config' or use the Web UI Drive Auth page."
-     # Don't exit here, let user configure via Web UI
+     echo "Warning: Rclone config file '${RCLONE_CONFIG_FILE}' not found."
+     echo "The web application might not be able to authenticate with Google Drive until configured via CLI or Web UI."
+    # Removed the pause here as the Web UI can handle it later
 fi
 
-
-echo "Setting up project directories..."
-mkdir -p "${PROJECT_DIR}/templates"
-mkdir -p "${PROJECT_DIR}/static"
-mkdir -p "${PROJECT_DIR}/footage/videos" # Subdirs for local storage
-mkdir -p "${PROJECT_DIR}/footage/photos"
-mkdir -p "${PROJECT_DIR}/config_backups"
-mkdir -p "${PROJECT_DIR}/logs" # Specific directory for logs
-
-echo "Setting permissions..."
-# Set ownership of the entire project directory to the specified user
-# This includes the new venv directory
+echo "Setting final permissions and script executability..."
+# Ensure user owns everything again, including venv content
 chown -R "${PROJECT_USER}:${PROJECT_USER}" "${PROJECT_DIR}"
 
 # Make shell scripts executable by the owner
@@ -120,29 +114,28 @@ if [ -f "${PROJECT_DIR}/send_notification.py" ]; then
 fi
 
 echo "Setting up systemd service for Gunicorn (pi-gunicorn.service)..."
-# Define Gunicorn executable path inside the virtual environment
-GUNICORN_VENV_PATH="${PROJECT_DIR}/venv/bin/gunicorn"
-
-# Check if Gunicorn exists in venv
-if [ ! -x "${GUNICORN_VENV_PATH}" ]; then
-    echo "Error: Gunicorn not found inside the virtual environment at ${GUNICORN_VENV_PATH}." >&2
-    echo "Python package installation might have failed. Check previous logs." >&2
+# Ensure Gunicorn path inside venv exists and is executable
+if [ ! -x "${GUNICORN_EXECUTABLE}" ]; then
+    echo "Error: Gunicorn not found or not executable at expected venv path: ${GUNICORN_EXECUTABLE}" >&2
+    echo "Check if the virtual environment setup and package installation succeeded." >&2
     exit 1
 fi
+echo "Using Gunicorn from: ${GUNICORN_EXECUTABLE}"
 
 # Create Gunicorn service file
-# Uses the specific path to Gunicorn inside the venv for ExecStart
+# Using explicit paths with variables resolved *before* writing the file
 cat > /etc/systemd/system/pi-gunicorn.service <<EOF
 [Unit]
 Description=Gunicorn instance to serve SDTransfer Offloader
+# BindsTo=network.target # More specific than After sometimes
 After=network.target
 
 [Service]
 User=${PROJECT_USER}
-Group=www-data # Optional: For potential future shared access needs
+Group=www-data # Nginx user, good for socket permissions if using Unix sockets later
 WorkingDirectory=${PROJECT_DIR}
-# Ensure Gunicorn runs from the virtual environment
-ExecStart=${PROJECT_DIR}/venv/bin/gunicorn --workers 3 --bind 127.0.0.1:5000 app:app
+# Ensure the ExecStart uses the Gunicorn from the virtual environment
+ExecStart=${GUNICORN_EXECUTABLE} --workers 3 --bind 127.0.0.1:5000 app:app
 Restart=always
 RestartSec=3
 # Log Gunicorn output to the project's log directory
@@ -156,53 +149,74 @@ EOF
 echo "Reloading systemd daemon, enabling and starting Gunicorn service..."
 systemctl daemon-reload
 systemctl enable pi-gunicorn
-systemctl restart pi-gunicorn # Use restart to apply changes
+# Use restart; if the file was bad before, this ensures it re-reads the fixed one
+systemctl restart pi-gunicorn
+
+# Check status immediately after trying to restart
+sleep 2 # Give it a moment to try starting
+if systemctl is-active --quiet pi-gunicorn; then
+    echo "Gunicorn service started successfully."
+else
+    echo "Error: Gunicorn service failed to start." >&2
+    echo "Run 'systemctl status pi-gunicorn.service' and 'sudo journalctl -u pi-gunicorn.service' for details." >&2
+    # Decide if you want to exit here or continue with Nginx setup
+    # exit 1 # Optional: Stop if Gunicorn fails
+fi
+
 
 echo "Configuring Nginx as a reverse proxy..."
 # Create Nginx config file
 cat > /etc/nginx/sites-available/sdtransfer <<EOF
 server {
-    listen 80 default_server; # Listen on port 80 for all IPv4 interfaces
-    listen [::]:80 default_server; # Listen on port 80 for all IPv6 interfaces
-
+    listen 80 default_server; # Make this the default server for IP access
+    listen [::]:80 default_server;
     server_name _; # Listen on all hostnames
 
-    # Increase max body size if you plan file uploads via UI later
+    # Increase max body size if needed later for uploads via web UI
     # client_max_body_size 100M;
 
+    # Root path for server (optional, good practice)
+    root ${PROJECT_DIR}; # Or /var/www/html if preferred
+
     location / {
-        proxy_pass http://127.0.0.1:5000; # Forward requests to Gunicorn
+        # Pass requests to the Gunicorn server running on localhost:5000
+        proxy_pass http://127.0.0.1:5000;
         proxy_set_header Host \$host;
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto \$scheme;
 
         # Recommended proxy settings
-        proxy_read_timeout 300s; # Longer timeout for potentially long operations
+        proxy_read_timeout 300s;
         proxy_connect_timeout 75s;
         proxy_redirect off;
-        # proxy_buffering off; # Consider if streaming needed
     }
 
     # Serve static files directly via Nginx for performance
-    location /static {
-        alias ${PROJECT_DIR}/static;
-        expires 30d; # Cache static files
-        access_log off; # Don't log static file access
+    location /static/ { # Added trailing slash for consistency
+        alias ${PROJECT_DIR}/static/; # Added trailing slash
+        expires 30d;
+        add_header Cache-Control "public";
+        access_log off;
+    }
+
+    # Optional: Deny access to hidden files (like .env) if served from project root
+    location ~ /\. {
+        deny all;
     }
 }
 EOF
 
 echo "Enabling Nginx site configuration..."
-# Remove default site if it exists to avoid conflicts
+# Remove default site if it exists and conflicts
 rm -f /etc/nginx/sites-enabled/default
-# Create symbolic link to enable our site
+# Create symbolic link (use -f to force overwrite if link exists)
 ln -sf /etc/nginx/sites-available/sdtransfer /etc/nginx/sites-enabled/
 
 echo "Testing Nginx configuration..."
 if ! nginx -t; then
-    echo "Error: Nginx configuration test failed. Please check Nginx logs (/var/log/nginx/error.log)." >&2
-    # Optionally exit here: exit 1
+    echo "Error: Nginx configuration test failed. Please check Nginx logs ('sudo journalctl -u nginx' or /var/log/nginx/error.log)." >&2
+    # Optionally stop here: exit 1
 fi
 
 echo "Restarting Nginx service..."
@@ -211,47 +225,48 @@ systemctl restart nginx
 echo "Setting up cron jobs for user '${PROJECT_USER}'..."
 # Use temporary file for safer crontab update
 CRON_TEMP_FILE=$(mktemp)
-# Get current crontab or empty if none, ignoring errors if no crontab exists
-crontab -u "${PROJECT_USER}" -l > "${CRON_TEMP_FILE}" 2>/dev/null || true
+# Get current crontab or empty if none, ensuring correct user context
+sudo -u "${PROJECT_USER}" crontab -l > "${CRON_TEMP_FILE}" 2>/dev/null || true
 
-# Define cron job commands with full paths and logging
-OFFLOAD_CMD="bash ${PROJECT_DIR}/offload.sh >> ${PROJECT_DIR}/logs/cron_offload.log 2>&1"
-UPLOAD_CMD="bash ${PROJECT_DIR}/upload_and_cleanup.sh >> ${PROJECT_DIR}/logs/cron_upload.log 2>&1"
+# Define cron log files
+CRON_OFFLOAD_LOG="${PROJECT_DIR}/logs/cron_offload.log"
+CRON_UPLOAD_LOG="${PROJECT_DIR}/logs/cron_upload.log"
 
 # Add/Update offload on reboot (with delay)
-# Remove existing line first to avoid duplicates, matching the specific script path
-sed -i "\%@reboot.*${PROJECT_DIR}/offload.sh%d" "${CRON_TEMP_FILE}"
-echo "@reboot sleep 60 && ${OFFLOAD_CMD}" >> "${CRON_TEMP_FILE}"
+# Remove existing line first to avoid duplicates
+sed -i '\%@reboot.*offload.sh%d' "${CRON_TEMP_FILE}"
+echo "@reboot sleep 60 && bash ${PROJECT_DIR}/offload.sh >> ${CRON_OFFLOAD_LOG} 2>&1" >> "${CRON_TEMP_FILE}"
 
 # Add/Update daily upload (e.g., at 2 AM)
 # Remove existing line first
-sed -i "\%${PROJECT_DIR}/upload_and_cleanup.sh%d" "${CRON_TEMP_FILE}"
-echo "0 2 * * * ${UPLOAD_CMD}" >> "${CRON_TEMP_FILE}"
+sed -i '\%upload_and_cleanup.sh%d' "${CRON_TEMP_FILE}"
+echo "0 2 * * * bash ${PROJECT_DIR}/upload_and_cleanup.sh >> ${CRON_UPLOAD_LOG} 2>&1" >> "${CRON_TEMP_FILE}"
 
-# Install the modified crontab for the project user
-crontab -u "${PROJECT_USER}" "${CRON_TEMP_FILE}"
-rm "${CRON_TEMP_FILE}" # Clean up temp file
-echo "Cron jobs updated."
+# Install the modified crontab for the specific user
+sudo -u "${PROJECT_USER}" crontab "${CRON_TEMP_FILE}"
+rm "${CRON_TEMP_FILE}"
+echo "Cron jobs updated for user ${PROJECT_USER}."
 
 echo "---------------------------------------------------------------------"
-echo "SDTransfer Offloader Installation Complete!"
+echo "One-Click Installer Finished!"
 echo "---------------------------------------------------------------------"
-echo "The Flask application should be running via Gunicorn and proxied by Nginx."
+echo "The Flask application should be running via Gunicorn (from venv) and proxied by Nginx."
 echo "Access the web UI at: http://<your_pi_ip_address>/"
-echo "(Note: It's now on port 80, not 5000 externally)"
+echo "(Note: It's on port 80, not 5000 externally)"
 echo ""
 echo "Next Steps:"
-echo "1. Access the web UI."
+echo "1. Access the web UI in your browser."
 echo "2. Set your Admin Username and Password via the '/credentials' page."
 echo "3. Configure Google Drive Authentication via the '/drive_auth' page."
-echo "4. Verify/Edit SD Card Mount Point in '${PROJECT_DIR}/upload_and_cleanup.sh'."
-echo "5. Configure Email Notifications via '/notifications' (optional)."
+echo "4. Verify the SD Card Mount Point in '${PROJECT_DIR}/upload_and_cleanup.sh'."
+echo "5. Optionally configure Email Notifications via the '/notifications' page."
 echo ""
 echo "Troubleshooting:"
-echo "- Gunicorn logs: ${PROJECT_DIR}/logs/gunicorn.log / gunicorn.error.log"
-echo "- Nginx logs: /var/log/nginx/error.log / /var/log/nginx/access.log"
-echo "- Cron job logs: ${PROJECT_DIR}/logs/cron_*.log"
-echo "- Check service status: 'sudo systemctl status pi-gunicorn' and 'sudo systemctl status nginx'"
+echo "- Check Gunicorn status: 'systemctl status pi-gunicorn.service'"
+echo "- Check Gunicorn logs: '${PROJECT_DIR}/logs/gunicorn.*.log'"
+echo "- Check Nginx status: 'systemctl status nginx.service'"
+echo "- Check Nginx logs: '/var/log/nginx/error.log' or 'sudo journalctl -u nginx'"
+echo "- Check Cron job logs: '${PROJECT_DIR}/logs/cron_*.log'"
 echo "---------------------------------------------------------------------"
 
 exit 0
