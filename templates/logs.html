@@ -1,43 +1,41 @@
 {% extends "base.html" %}
 {% block title %}Logs - SDTransfer Offloader{% endblock %}
 {% block content %}
-  <h2>System Logs</h2>
+  <h2><i class="fa fa-file-alt"></i> System Logs</h2>
 
   <div class="panel">
-    <h3>Offload Script Log <small>(Stateful Copy & Upload Coordination)</small></h3>
-    <p class="log-description">Shows start/end, copy actions, upload triggers, and final status from <code>offload.sh</code> / <code>upload_and_cleanup.sh</code>.</p>
-    <pre class="log-output">{{ offload | default('(Log file empty or not found)') }}</pre>
-  </div>
-
-  <div class="panel">
-    <h3>Rclone Upload Log <small>(Detailed File Transfers)</small></h3>
-     <p class="log-description">Shows detailed output from individual `rclone copyto` commands, including transfer stats and errors.</p>
-    <pre class="log-output">{{ upload | default('(Log file empty or not found)') }}</pre>
+    <h3><i class="fa fa-upload"></i> Upload Log (rclone)</h3>
+    <pre class="log-output">{{ upload }}</pre>
   </div>
 
   <div class="panel">
-    <h3>Retry Offload Log <small>(Retry Upload Attempts)</small></h3>
-     <p class="log-description">Shows logs specific to the 'Retry Failed Uploads' action.</p>
-    <pre class="log-output">{{ retry | default('(Log file empty or not found)') }}</pre>
+    <h3><i class="fa fa-download"></i> Offload Log (Wrapper Script)</h3>
+    <pre class="log-output">{{ offload }}</pre>
   </div>
 
+  <!-- Add other logs if needed, e.g., Gunicorn, Cron -->
+  <!-- Example:
   <div class="panel">
-    <h3>Notification Sending Log <small>(Email & Internal)</small></h3>
-     <p class="log-description">Shows attempts to send email notifications (from `send_notification.py`) and logs internal notifications sent to the UI.</p>
-    <pre class="log-output">{{ notification | default('(Log file empty or not found)') }}</pre>
+    <h3><i class="fa fa-server"></i> Gunicorn Error Log</h3>
+    <pre class="log-output">{{ gunicorn_error_log_content_variable }}</pre>
   </div>
+   -->
 
-   <div class="panel">
-    <h3>Eject Script Log <small>(SD Card Unmount)</small></h3>
-     <p class="log-description">Shows attempts and results of unmounting the SD card via the 'Eject' action.</p>
-    <pre class="log-output">{{ eject | default('(Log file empty or not found)') }}</pre>
-  </div>
+  <a class="btn" href="{{ url_for('index') }}"><i class="fa fa-arrow-left"></i> Back to Dashboard</a>
 
-   <div class="panel">
-    <h3>udev Trigger Log <small>(Automatic SD Detection)</small></h3>
-     <p class="log-description">Shows when the system detected an SD card insertion (if udev rules are configured) and triggered the offload script.</p>
-    <pre class="log-output">{{ udev | default('(Log file empty or not found)') }}</pre>
-  </div>
-
-  <a class="btn btn-secondary" href="{{ url_for('index') }}"><i class="fa fa-arrow-left"></i> Back to Dashboard</a>
+  <style>
+    .log-output {
+      background-color: #111;
+      color: #ccc;
+      padding: 15px;
+      border-radius: 5px;
+      border: 1px solid #333;
+      max-height: 400px;
+      overflow-y: auto;
+      white-space: pre-wrap; /* Wrap long lines */
+      word-wrap: break-word; /* Break words if needed */
+      font-family: monospace;
+      font-size: 0.85em;
+    }
+  </style>
 {% endblock %}

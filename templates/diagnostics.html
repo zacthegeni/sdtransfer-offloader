@@ -1,17 +1,14 @@
 {% extends "base.html" %}
 {% block title %}Diagnostics - SDTransfer Offloader{% endblock %}
 {% block content %}
-  <h2>System Diagnostics</h2>
+  <h2><i class="fa fa-stethoscope"></i> System Diagnostics</h2>
   <div class="panel">
-    <p><strong>System Uptime:</strong> {{ info.uptime | default('N/A') }}</p>
-    <p><strong>CPU Usage:</strong> {{ info.cpu_usage | default('N/A') }}</p>
-    <p><strong>Memory:</strong> {{ info.memory_used | default('N/A') }} used of {{ info.memory_total | default('N/A') }} ({{ info.memory_percent | default('N/A') }})</p>
-    <p><strong>Network Bytes Sent:</strong> {{ info.bytes_sent | default('N/A') }}</p>
-    <p><strong>Network Bytes Received:</strong> {{ info.bytes_recv | default('N/A') }}</p>
-    <hr>
-    <h3>Monitored Disk Details</h3>
-    <p><strong>Path:</strong> <code>{{ info.monitored_path | default('N/A') }}</code></p>
-    <pre class="log-output">{{ info.disk_usage_monitored_path | default('Error retrieving disk info.') }}</pre>
+    <p><strong><i class="fa fa-clock"></i> Uptime:</strong> {{ info.uptime }}</p>
+    <p><strong><i class="fa fa-microchip"></i> CPU Usage:</strong> {{ info.cpu_usage }}</p>
+    <p><strong><i class="fa fa-memory"></i> Memory:</strong> {{ info.memory_used }} used of {{ info.memory_total }} ({{ info.memory_percent }})</p>
+    <p><strong><i class="fa fa-network-wired"></i> Network:</strong> Sent: {{ info.bytes_sent | filesizeformat }} | Received: {{ info.bytes_recv | filesizeformat }}</p> {# Use Flask's filesizeformat filter #}
+    <p><strong><i class="fa fa-hdd"></i> Disk Info (/):</strong></p>
+    <pre style="background-color: #111; padding: 10px; border-radius: 4px;">{{ info.disk_usage }}</pre>
   </div>
-   <a class="btn btn-secondary" href="{{ url_for('index') }}"><i class="fa fa-arrow-left"></i> Back to Dashboard</a>
+  <a class="btn" href="{{ url_for('index') }}"><i class="fa fa-arrow-left"></i> Back to Dashboard</a>
 {% endblock %}

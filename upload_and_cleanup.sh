@@ -1,84 +1,184 @@
 #!/bin/bash
-# /home/pi/pi-offloader/upload_and_cleanup.sh
-# Copies files, tracks state, uploads. Expects Mount Point as $1.
+# upload_and_cleanup.sh
+# Copies files from SD card, uploads via rclone.
+# Adapted for user 'zmakey' and project structure.
 
-# --- Load Environment & Setup ---
-SCRIPT_DIR=$(dirname "$(realpath "$0")")
-ENV_FILE="$SCRIPT_DIR/.env"
+# --- Configuration ---
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+PROJECT_USER="zmakey"
 
-# Load .env for settings OTHER than the mount point itself
-if [ -f "$ENV_FILE" ]; then set -a; source "$ENV_FILE"; set +a; else echo "$(date): Error - Env file $ENV_FILE not found." >> "$SCRIPT_DIR/logs/error.log"; exit 1; fi
+# !! CRITICAL: Verify this mount point matches your system !!
+# Examples: /media/zmakey/MY_SD_LABEL, /media/zmakey/1234-5678
+SD_MOUNT="/media/${PROJECT_USER}/SDCARD" # Default assumption, CHANGE IF NEEDED!
 
-# --- Get Mount Point from Argument ---
-ARG_MOUNT_POINT="$1"
-if [ -z "$ARG_MOUNT_POINT" ]; then echo "$(date): Error - Mount point argument not provided." >> "$SCRIPT_DIR/logs/error.log"; exit 1; fi
-if ! mountpoint -q "$ARG_MOUNT_POINT"; then echo "$(date): Error - Provided path '$ARG_MOUNT_POINT' is not a valid mount point." >> "$SCRIPT_DIR/logs/error.log"; exit 1; fi
-SD_MOUNT_PATH="$ARG_MOUNT_POINT" # Use the validated argument
-# --- End Mount Point Handling ---
+# Source directories on the SD card (relative to SD_MOUNT)
+# Adjust these based on your camera's file structure
+VIDEO_REL_PATH="PRIVATE/M4ROOT/CLIP"
+PHOTO_REL_PATH="DCIM/100MSDCF"
 
-# Define remaining variables based on loaded .env and argument
-LOG_FILE="$OFFLOAD_LOG"; RCLONE_LOG="$UPLOAD_LOG"; NOTIFY_TOKEN="$INTERNAL_NOTIFY_TOKEN"; NOTIFY_URL="http://127.0.0.1:5000/internal/notify"
-LOCAL_VIDEO_DEST="${LOCAL_FOOTAGE_PATH}/videos"; LOCAL_PHOTO_DEST="${LOCAL_FOOTAGE_PATH}/photos"
-VIDEO_SOURCE_FULL="${SD_MOUNT_PATH}/${VIDEO_SUBDIR}"; PHOTO_SOURCE_FULL="${SD_MOUNT_PATH}/${PHOTO_SUBDIR}"
-RCLONE_VIDEO_DEST="${RCLONE_REMOTE_NAME}:${RCLONE_REMOTE_BASE_PATH}/videos/"; RCLONE_PHOTO_DEST="${RCLONE_REMOTE_NAME}:${RCLONE_REMOTE_BASE_PATH}/photos/"
+# Local storage directories within the project folder
+LOCAL_VIDEO="${SCRIPT_DIR}/footage/videos"
+LOCAL_PHOTO="${SCRIPT_DIR}/footage/photos"
 
-# --- Helper Functions (Unchanged) ---
-log() { echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" >> "$LOG_FILE"; }
-notify() {
-  local message="$1"; local type="${2:-info}"; local data; if [ -z "$NOTIFY_TOKEN" ]; then log "Notify Error: Token missing."; return; fi
-  if command -v jq > /dev/null; then data=$(jq -nc --arg msg "$message" --arg typ "$type" '{"message": $msg, "type": $typ}'); else message_esc=$(echo "$message" | sed 's/\\/\\\\/g' | sed 's/"/\\"/g' | sed 's/&/\\u0026/g' | sed "s/'/\\u0027/g"); data="{\"message\": \"$message_esc\", \"type\": \"$type\"}"; fi
-  curl -s -X POST -H "Content-Type: application/json" -H "X-Notify-Token: $NOTIFY_TOKEN" --data "$data" "$NOTIFY_URL" --max-time 5 --connect-timeout 3 > /dev/null 2>&1 &
-}
-create_marker() { local filepath="$1"; local type="$2"; touch "${filepath}.${type}"; }
-check_marker() { local filepath="$1"; local type="$2"; [ -f "${filepath}.${type}" ]; }
-# --- End Helpers ---
+# Rclone configuration
+RCLONE_CONFIG="${SCRIPT_DIR}/rclone.conf"
+RCLONE_REMOTE_NAME="gdrive" # Must match the remote name configured in rclone
+RCLONE_BASE_PATH="FX3_Backups" # Base folder on Google Drive
 
-# --- Start Script ---
-log "===== Starting Offload/Upload Process for $SD_MOUNT_PATH ====="; notify "Starting Offload for $SD_MOUNT_PATH..." "info"
-mkdir -p "$(dirname "$LOG_FILE")" "$(dirname "$RCLONE_LOG")" "$LOCAL_VIDEO_DEST" "$LOCAL_PHOTO_DEST"
-log "SD Card mounted at $SD_MOUNT_PATH."
+# Log file for rclone operations
+RCLONE_LOG="${SCRIPT_DIR}/logs/upload.log" # Renamed from rclone.log for clarity
 
-# --- Copy NEW files (Unchanged Logic) ---
-log "Starting file copy and marking..."; COPY_COUNT=0; COPY_ERRORS=0
-process_source_dir() {
-    local source_dir="$1"; local dest_dir="$2"; local file_type="$3"
-    if [ ! -d "$source_dir" ]; then log "$file_type source dir not found: $source_dir"; return; fi
-    log "Processing $file_type from $source_dir to $dest_dir"; local found_files=0
-    find "$source_dir" -type f -print0 | while IFS= read -r -d $'\0' source_file; do
-        found_files=1; filename=$(basename "$source_file"); dest_file="$dest_dir/$filename"
-        if check_marker "$dest_file" "copied"; then continue; fi
-        log "Copying $filename to $dest_dir"; rsync -W --info=progress2 "$source_file" "$dest_dir/"
-        if [ $? -eq 0 ]; then log "Creating .copied marker for $filename"; create_marker "$dest_file" "copied"; COPY_COUNT=$((COPY_COUNT + 1)); else log "Error copying $filename."; COPY_ERRORS=$((COPY_ERRORS + 1)); notify "Error copying $filename from SD." "error"; fi
-    done
-    if [ $found_files -eq 0 ]; then log "No files found in $source_dir to process."; fi; log "$file_type copy processing finished."
-}
-process_source_dir "$VIDEO_SOURCE_FULL" "$LOCAL_VIDEO_DEST" "Videos"; process_source_dir "$PHOTO_SOURCE_FULL" "$LOCAL_PHOTO_DEST" "Photos"
-log "File copy phase complete. Copied: $COPY_COUNT files. Errors: $COPY_ERRORS."; if [ $COPY_ERRORS -gt 0 ]; then notify "Encountered $COPY_ERRORS errors during file copy." "warning"; fi
+# Rclone options
+RCLONE_OPTS=(
+    "--config" "${RCLONE_CONFIG}"
+    "--log-level" "INFO" # Or "DEBUG" for more detail
+    "--log-file" "${RCLONE_LOG}"
+    "--min-age" "1m"      # Don't upload files modified in the last minute (avoids partial copies)
+    "--fast-list"         # Use fewer transactions for listing files (good for GDrive)
+    "--transfers" "4"     # Number of parallel transfers
+    "--checkers" "8"      # Number of parallel checkers
+    "--contimeout" "60s"
+    "--timeout" "300s"
+    "--retries" "3"
+    "--low-level-retries" "10"
+    # "--bwlimit" "8M"    # Optional: Limit bandwidth to 8 MByte/s
+    # "--delete-empty-src-dirs" # Optional: Clean up empty source dirs after copy if local files were moved/deleted
+)
 
-# --- Upload files (Unchanged Logic) ---
-log "Starting upload phase for non-uploaded files..."; UPLOAD_COUNT=0; UPLOAD_ERRORS=0
-process_upload_dir() {
-    local local_dir="$1"; local remote_dest="$2"; local file_type="$3"
-    log "Checking $file_type in $local_dir for upload..."; local found_files_to_upload=0
-    find "$local_dir" -maxdepth 1 -type f -print0 | while IFS= read -r -d $'\0' local_file; do
-        filename=$(basename "$local_file"); [[ "$filename" == .* ]] && continue # Skip hidden/markers
-        if check_marker "$local_file" "copied" && ! check_marker "$local_file" "uploaded"; then
-            found_files_to_upload=1; log "Uploading $filename to $remote_dest"; notify "Uploading $filename..." "info"
-            # Add --log-file here if needed for individual file logs
-            rclone copyto --config "$RCLONE_CONFIG_PATH" "$local_file" "${remote_dest}${filename}" $RCLONE_COPY_FLAGS --log-file "$RCLONE_LOG"
-            if [ $? -eq 0 ]; then log "Creating .uploaded marker for $filename"; create_marker "$local_file" "uploaded"; UPLOAD_COUNT=$((UPLOAD_COUNT + 1)); notify "$filename uploaded successfully." "success"; else log "Error uploading $filename. Check rclone log: $RCLONE_LOG"; UPLOAD_ERRORS=$((UPLOAD_ERRORS + 1)); notify "Error uploading $filename." "error"; fi
-        fi
-    done
-    if [ $found_files_to_upload -eq 0 ]; then log "No $file_type files found in $local_dir needing upload."; fi; log "$file_type upload processing finished."
-}
-process_upload_dir "$LOCAL_VIDEO_DEST" "$RCLONE_VIDEO_DEST" "Videos"; process_upload_dir "$LOCAL_PHOTO_DEST" "$RCLONE_PHOTO_DEST" "Photos"
-log "Upload phase complete. Uploaded: $UPLOAD_COUNT files. Errors: $UPLOAD_ERRORS."; if [ $UPLOAD_ERRORS -gt 0 ]; then notify "Encountered $UPLOAD_ERRORS errors during file upload." "warning"; fi
+# --- Script Start ---
+echo "========================================" >> "${RCLONE_LOG}"
+echo "$(date): upload_and_cleanup.sh started." >> "${RCLONE_LOG}"
 
-# --- Final Outcome (Unchanged Logic) ---
-FINAL_MSG="Offload/Upload process finished."; FINAL_TYPE="info"
-if [ $COPY_ERRORS -eq 0 ] && [ $UPLOAD_ERRORS -eq 0 ]; then if [ $COPY_COUNT -gt 0 ] || [ $UPLOAD_COUNT -gt 0 ]; then FINAL_MSG="Offload completed (Copied: $COPY_COUNT, Uploaded: $UPLOAD_COUNT)."; FINAL_TYPE="success"; else FINAL_MSG="Offload finished. No new files found/processed."; FINAL_TYPE="info"; fi
-elif [ $UPLOAD_ERRORS -gt 0 ]; then FINAL_MSG="Offload finished with UPLOAD errors (Errors: $UPLOAD_ERRORS)."; FINAL_TYPE="error"
-else FINAL_MSG="Offload finished with COPY errors (Errors: $COPY_ERRORS)."; FINAL_TYPE="warning"; fi
-log "$FINAL_MSG"; notify "$FINAL_MSG" "$FINAL_TYPE"
-log "===== Offload and Upload Process Finished for $SD_MOUNT_PATH ====="
-exit 0
+# 0. Check if rclone config exists
+if [ ! -f "${RCLONE_CONFIG}" ]; then
+  echo "$(date): Error: Rclone config file not found at ${RCLONE_CONFIG}. Cannot upload." >> "${RCLONE_LOG}"
+  exit 1
+fi
+
+# 1. Check if SD card is mounted
+if ! mountpoint -q "$SD_MOUNT"; then
+  echo "$(date): SD card is not mounted at ${SD_MOUNT}. Checking if auto-mount helps..." >> "${RCLONE_LOG}"
+  # Attempt to trigger udisksctl mount if applicable (may need policykit rules)
+  # Find the device corresponding to the potential label SDCARD
+  SD_DEVICE=$(lsblk -o NAME,LABEL,MOUNTPOINT | grep 'SDCARD' | awk '{print $1}' | sed 's/^[^a-zA-Z0-9]*//;s/[^a-zA-Z0-9]*$//')
+  if [ -n "$SD_DEVICE" ]; then
+      echo "$(date): Attempting to mount /dev/${SD_DEVICE}..." >> "${RCLONE_LOG}"
+      udisksctl mount -b "/dev/${SD_DEVICE}" >> "${RCLONE_LOG}" 2>&1
+      sleep 5 # Give it a moment
+      if ! mountpoint -q "$SD_MOUNT"; then
+          echo "$(date): Auto-mount attempt failed or device still not at ${SD_MOUNT}. Exiting." >> "${RCLONE_LOG}"
+          exit 1
+      fi
+      echo "$(date): SD card mounted successfully after attempt." >> "${RCLONE_LOG}"
+  else
+      echo "$(date): Could not identify device for label SDCARD. Cannot attempt mount. Exiting." >> "${RCLONE_LOG}"
+      exit 1
+  fi
+fi
+echo "$(date): SD card mounted at ${SD_MOUNT}." >> "${RCLONE_LOG}"
+
+
+# 2. Ensure local directories exist
+mkdir -p "$LOCAL_VIDEO"
+mkdir -p "$LOCAL_PHOTO"
+echo "$(date): Local directories ensured: ${LOCAL_VIDEO}, ${LOCAL_PHOTO}." >> "${RCLONE_LOG}"
+
+# 3. Define full source paths
+VIDEO_SOURCE="${SD_MOUNT}/${VIDEO_REL_PATH}"
+PHOTO_SOURCE="${SD_MOUNT}/${PHOTO_REL_PATH}"
+
+# 4. Copy files from SD to local storage (Offload)
+# Using rsync for potentially better resuming and error handling
+COPY_COUNT=0
+ERROR_FLAG=0
+
+if [ -d "$VIDEO_SOURCE" ]; then
+  echo "$(date): Copying videos from ${VIDEO_SOURCE} to ${LOCAL_VIDEO}..." >> "${RCLONE_LOG}"
+  rsync -av --no-perms --ignore-existing "${VIDEO_SOURCE}/" "${LOCAL_VIDEO}/" >> "${RCLONE_LOG}" 2>&1
+  if [ $? -eq 0 ]; then
+      VIDEO_COUNT=$(find "${VIDEO_SOURCE}" -maxdepth 1 -type f | wc -l)
+      COPY_COUNT=$((COPY_COUNT + VIDEO_COUNT))
+      echo "$(date): Video copy finished." >> "${RCLONE_LOG}"
+  else
+      echo "$(date): Error during video copy (rsync exit code $?). Check log." >> "${RCLONE_LOG}"
+      ERROR_FLAG=1
+  fi
+else
+    echo "$(date): Video source directory ${VIDEO_SOURCE} not found. Skipping video copy." >> "${RCLONE_LOG}"
+fi
+
+if [ -d "$PHOTO_SOURCE" ]; then
+  echo "$(date): Copying photos from ${PHOTO_SOURCE} to ${LOCAL_PHOTO}..." >> "${RCLONE_LOG}"
+  rsync -av --no-perms --ignore-existing "${PHOTO_SOURCE}/" "${LOCAL_PHOTO}/" >> "${RCLONE_LOG}" 2>&1
+   if [ $? -eq 0 ]; then
+      PHOTO_COUNT=$(find "${PHOTO_SOURCE}" -maxdepth 1 -type f | wc -l)
+      COPY_COUNT=$((COPY_COUNT + PHOTO_COUNT))
+      echo "$(date): Photo copy finished." >> "${RCLONE_LOG}"
+  else
+      echo "$(date): Error during photo copy (rsync exit code $?). Check log." >> "${RCLONE_LOG}"
+      ERROR_FLAG=1
+  fi
+else
+     echo "$(date): Photo source directory ${PHOTO_SOURCE} not found. Skipping photo copy." >> "${RCLONE_LOG}"
+fi
+
+echo "$(date): Local copy phase complete. Approx ${COPY_COUNT} files considered (may include existing)." >> "${RCLONE_LOG}"
+
+# Optional: Check if copy actually copied anything before proceeding?
+
+# 5. Upload files from local storage to Google Drive (Upload)
+echo "$(date): Starting upload from local storage to Google Drive (${RCLONE_REMOTE_NAME}:${RCLONE_BASE_PATH})..." >> "${RCLONE_LOG}"
+
+# Upload Videos
+if [ "$(ls -A ${LOCAL_VIDEO})" ]; then # Check if directory is not empty
+    echo "$(date): Uploading videos from ${LOCAL_VIDEO}..." >> "${RCLONE_LOG}"
+    rclone copy "${RCLONE_OPTS[@]}" "$LOCAL_VIDEO" "${RCLONE_REMOTE_NAME}:${RCLONE_BASE_PATH}/videos/"
+    if [ $? -ne 0 ]; then echo "$(date): Warning: rclone reported errors during video upload. Check log." >> "${RCLONE_LOG}"; ERROR_FLAG=1; fi
+else
+    echo "$(date): Local video directory is empty. Skipping video upload." >> "${RCLONE_LOG}"
+fi
+
+# Upload Photos
+if [ "$(ls -A ${LOCAL_PHOTO})" ]; then # Check if directory is not empty
+    echo "$(date): Uploading photos from ${LOCAL_PHOTO}..." >> "${RCLONE_LOG}"
+    rclone copy "${RCLONE_OPTS[@]}" "$LOCAL_PHOTO" "${RCLONE_REMOTE_NAME}:${RCLONE_BASE_PATH}/photos/"
+    if [ $? -ne 0 ]; then echo "$(date): Warning: rclone reported errors during photo upload. Check log." >> "${RCLONE_LOG}"; ERROR_FLAG=1; fi
+else
+     echo "$(date): Local photo directory is empty. Skipping photo upload." >> "${RCLONE_LOG}"
+fi
+
+echo "$(date): Upload phase complete." >> "${RCLONE_LOG}"
+
+
+# 6. Optional Cleanup: Delete files from SD card AFTER successful copy/upload
+# WARNING: Uncomment VERY carefully. Ensure copy/upload works reliably first.
+# Consider using `rclone move` directly from SD if network is reliable and local copy isn't needed.
+# if [ ${ERROR_FLAG} -eq 0 ]; then
+#   echo "$(date): Cleanup phase: Removing files from SD card (if directories exist)..." >> "${RCLONE_LOG}"
+#   if [ -d "$VIDEO_SOURCE" ]; then
+#       echo "$(date): Removing files from ${VIDEO_SOURCE}/*" >> "${RCLONE_LOG}"
+#       rm -rf "${VIDEO_SOURCE:?}"/* # Safety: :? prevents accidental rm -rf /
+#   fi
+#   if [ -d "$PHOTO_SOURCE" ]; then
+#       echo "$(date): Removing files from ${PHOTO_SOURCE}/*" >> "${RCLONE_LOG}"
+#       rm -rf "${PHOTO_SOURCE:?}"/*
+#   fi
+#   echo "$(date): SD card cleanup finished." >> "${RCLONE_LOG}"
+# else
+#    echo "$(date): Skipping cleanup due to errors during copy or upload." >> "${RCLONE_LOG}"
+# fi
+
+# 7. Optional Cleanup: Delete successfully uploaded files from local storage
+# This saves space on the Pi's SD card.
+# Use `rclone delete --min-age 7d ...` or similar logic based on upload success.
+# Example: Delete local files older than 1 hour after attempting upload
+# echo "$(date): Local cleanup: Deleting successfully uploaded files (older than 1h) from local storage..." >> "${RCLONE_LOG}"
+# find "${LOCAL_VIDEO}" -maxdepth 1 -type f -mmin +60 -exec rm {} \; >> "${RCLONE_LOG}" 2>&1
+# find "${LOCAL_PHOTO}" -maxdepth 1 -type f -mmin +60 -exec rm {} \; >> "${RCLONE_LOG}" 2>&1
+# echo "$(date): Local cleanup finished." >> "${RCLONE_LOG}"
+# A more robust way is to use `rclone check` or parse logs to confirm upload before deleting.
+
+echo "$(date): upload_and_cleanup.sh finished." >> "${RCLONE_LOG}"
+echo "========================================" >> "${RCLONE_LOG}"
+
+exit ${ERROR_FLAG} # Exit with 0 if no errors, 1 otherwise

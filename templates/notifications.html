@@ -1,29 +1,31 @@
 {% extends "base.html" %}
 {% block title %}Email Notifications - SDTransfer Offloader{% endblock %}
 {% block content %}
-  <h2>Email Notifications Setup</h2>
+  <h2><i class="fa fa-envelope"></i> Email Notifications Configuration</h2>
   <div class="panel">
-    <form method="post">
-      <p>Fill in the details below to set up email notifications. Leave blank if you don't wish to use them.</p>
-      <label for="smtp_server">SMTP Server:</label>
-      <input type="text" id="smtp_server" name="smtp_server" placeholder="e.g. smtp.gmail.com" value="{{ config.smtp_server }}">
+    <form method="post" action="{{ url_for('notifications') }}">
+      <label for="smtp_server">SMTP Server Address:</label>
+      <input type="text" id="smtp_server" name="smtp_server" placeholder="e.g., smtp.gmail.com or smtp.office365.com" value="{{ config.smtp_server }}">
 
       <label for="smtp_port">SMTP Port:</label>
-      <input type="text" id="smtp_port" name="smtp_port" placeholder="e.g. 587" value="{{ config.smtp_port }}">
+      <input type="text" id="smtp_port" name="smtp_port" placeholder="e.g., 587 (TLS) or 465 (SSL)" value="{{ config.smtp_port }}">
 
-      <label for="smtp_username">Email Username:</label>
-      <input type="text" id="smtp_username" name="smtp_username" placeholder="your email address" value="{{ config.smtp_username }}">
+      <label for="smtp_username">SMTP Username (Your Email):</label>
+      <input type="email" id="smtp_username" name="smtp_username" placeholder="your_email@example.com" value="{{ config.smtp_username }}">
 
-      <label for="smtp_password">Email Password:</label>
-      <input type="password" id="smtp_password" name="smtp_password" placeholder="your email password" value="{{ config.smtp_password }}">
+      <label for="smtp_password">SMTP Password:</label>
+      <input type="password" id="smtp_password" name="smtp_password" placeholder="Your email password or App Password" value="{{ config.smtp_password }}">
+      <small style="display: block; margin-bottom: 10px; color: #aaa;">(For Gmail/Google Workspace, you likely need to generate an <a href='https://myaccount.google.com/apppasswords' target='_blank' rel='noopener noreferrer'>App Password</a>)</small>
 
-      <label for="target_email">Recipient Email:</label>
-      <input type="text" id="target_email" name="target_email" placeholder="recipient email address" value="{{ config.target_email }}">
 
-      <input class="btn" type="submit" value="Save Settings">
+      <label for="target_email">Recipient Email Address:</label>
+      <input type="email" id="target_email" name="target_email" placeholder="recipient@example.com" value="{{ config.target_email }}">
+
+      <input class="btn" type="submit" value="Save Email Settings">
     </form>
+    <p style="margin-top: 15px; font-size: 0.9em; color: #aaa;">
+        Ensure the optional `send_notification.py` script is implemented and called by other scripts (like `upload_and_cleanup.sh`) to actually send emails based on these settings.
+     </p>
   </div>
-  <a class="btn" href="/">
-    <i class="fa fa-home"></i> Back to Dashboard
-  </a>
+  <a class="btn" href="{{ url_for('index') }}"><i class="fa fa-arrow-left"></i> Back to Dashboard</a>
 {% endblock %}

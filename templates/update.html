@@ -1,49 +1,13 @@
-<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>System Update - SDTransfer Offloader</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <script>
-      function toggleNav() {
-        const nav = document.getElementById("mobile-nav");
-        nav.classList.toggle("active");
-      }
-    </script>
-  </head>
-  <body>
-    <!-- NAVBAR -->
-    <header class="navbar">
-      <div class="navbar-title">
-        <i class="fa fa-satellite-dish"></i> SDTransfer Offloader
-      </div>
-      <button class="nav-toggle" onclick="toggleNav()">
-        <i class="fa fa-bars"></i>
-      </button>
-      <nav id="mobile-nav" class="navbar-links">
-        <a href="/"><i class="fa fa-home"></i> Dashboard</a>
-        <a href="/wifi"><i class="fa fa-wifi"></i> Wi‑Fi</a>
-        <a href="/notifications"><i class="fa fa-envelope"></i> Email</a>
-        <a href="/logs"><i class="fa fa-file-alt"></i> Logs</a>
-        <a href="/diagnostics"><i class="fa fa-tachometer-alt"></i> Diagnostics</a>
-        <a href="/backup_config"><i class="fa fa-save"></i> Backup</a>
-        <a href="/update_system"><i class="fa fa-sync-alt"></i> Update</a>
-      </nav>
-    </header>
+{% extends "base.html" %}
+{% block title %}System Update - SDTransfer Offloader{% endblock %}
+{% block content %}
+  <h2><i class="fa fa-sync-alt"></i> System Update via Git</h2>
+  <div class="panel">
+     <p>This attempts to pull the latest code from the Git repository and restart the application service. Requires passwordless sudo for the service restart.</p>
+     <a class="btn" href="{{ url_for('update_system') }}"><i class="fa fa-cloud-download-alt"></i> Run Update Now</a>
 
-    <!-- MAIN CONTENT -->
-    <div class="container">
-      <h2>System Update</h2>
-      <div class="panel">
-        <pre>{{ output }}</pre>
-      </div>
-      <a class="btn" href="/"><i class="fa fa-home"></i> Back to Dashboard</a>
-    </div>
-
-    <!-- FOOTER -->
-    <footer class="footer">
-      <p>&copy; 2025 SDTransfer Offloader</p>
-    </footer>
-  </body>
-</html>
+     <h3 style="margin-top: 20px;">Update Output:</h3>
+    <pre style="background-color: #111; color: #ccc; padding: 15px; border-radius: 5px; border: 1px solid #333; max-height: 400px; overflow-y: auto; white-space: pre-wrap; word-wrap: break-word;">{{ output if output else "No update run yet in this session." }}</pre>
+  </div>
+  <a class="btn" href="{{ url_for('index') }}"><i class="fa fa-arrow-left"></i> Back to Dashboard</a>
+{% endblock %}
