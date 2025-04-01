@@ -38,7 +38,6 @@ INTERNAL_NOTIFY_TOKEN = os.getenv("INTERNAL_NOTIFY_TOKEN", "replace_with_your_ge
 
 # Helper Functions
 def add_notification(message, msg_type="info"):
-    # Placeholder: In a real system, you might enqueue this for SSE notifications.
     app.logger.info(f"Notification [{msg_type}]: {message}")
 
 def save_email_config(config):
@@ -485,17 +484,17 @@ def run_send_test_email():
         flash(f"Error executing send_notification.py: {e}", "error")
         return jsonify({"success": False, "message": f"Error executing script: {e}"})
 
-# NEW STREAM ENDPOINT FOR SSE
-@app.route('/stream')
+# New SSE stream endpoint with explicit endpoint name.
+@app.route('/stream', endpoint='stream')
 def stream():
     def event_stream():
-        # Dummy implementation: sends a keepalive message every 30 seconds.
+        # Dummy implementation: send a keepalive message every 30 seconds.
         while True:
-            yield "data: {}\n\n".format(json.dumps({"message": "Keepalive", "type": "info"}))
+            yield "data: " + json.dumps({"message": "Keepalive", "type": "info"}) + "\n\n"
             time.sleep(30)
     return Response(event_stream(), mimetype="text/event-stream")
 
 if __name__ == '__main__':
     app.logger.info(f"Starting Flask App. Internal Notify Token: {INTERNAL_NOTIFY_TOKEN[:4]}... (hidden)")
-    use_debug = os.getenv('FLASK_DEBUG', 'false').lower() in ['true', '1']
-    app.run(host='0.0.0.0', port=5000, debug=use_debug, use_reloader=use_debug, threaded=not use_debug)
+    # Turn on debug mode for testing
+    app.run(host='0.0.0.0', port=5000, debug=True, use_reloader=True, threaded=True)
