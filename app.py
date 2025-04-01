@@ -11,7 +11,7 @@ import psutil
 from threading import Thread
 from flask import (
     Flask, request, render_template, redirect, url_for,
-    jsonify, flash, Response, stream_with_context, session
+    jsonify, flash, Response, stream_with_context, session, after_this_request
 )
 from flask_httpauth import HTTPBasicAuth
 from dotenv import load_dotenv
@@ -30,7 +30,7 @@ auth = HTTPBasicAuth()
 
 # Global Variables and Paths
 MONITORED_DISK_PATH = os.getenv("MONITORED_DISK_PATH", "/")
-SD_MOUNT_PATH = os.getenv("SD_MOUNT_PATH", "")  # Should be set if used
+SD_MOUNT_PATH = os.getenv("SD_MOUNT_PATH", "")  # Set if used
 CONFIG_BACKUP_PATH = os.path.join(PROJECT_DIR, "config_backups")
 EMAIL_CONFIG_PATH = os.getenv("EMAIL_CONFIG", os.path.join(PROJECT_DIR, "email_config.json"))
 RCLONE_CONFIG_PATH = os.getenv("RCLONE_CONFIG", os.path.join(PROJECT_DIR, "rclone.conf"))
@@ -114,7 +114,6 @@ def verify_password(username, password):
     load_dotenv(dotenv_path, override=True)
     admin_username = os.getenv("ADMIN_USERNAME", "")
     admin_password = os.getenv("ADMIN_PASSWORD", "")
-    # Allow setup if credentials are not yet set
     if not admin_username or not admin_password:
         return True
     if username == admin_username and password == admin_password:
@@ -287,29 +286,32 @@ def backup_config():
 def update_system():
     if request.method == 'POST':
         response = render_template('update.html', output="Update initiated. Please wait...")
-        def perform_update():
-            update_output = ""
-            try:
-                git_cmd = ['git', 'pull']
-                result_git = subprocess.run(git_cmd, cwd=PROJECT_DIR, capture_output=True, text=True, check=True, timeout=60)
-                update_output += f"Git Pull Output:\n{result_git.stdout}\n{result_git.stderr}\n\n"
-                if 'requirements.txt' in result_git.stdout:
-                    pip_cmd = [os.path.join(PROJECT_DIR, 'venv/bin/pip'), 'install', '-r', 'requirements.txt']
-                    result_pip = subprocess.run(pip_cmd, cwd=PROJECT_DIR, capture_output=True, text=True, check=True, timeout=120)
-                    update_output += f"Pip Install Output:\n{result_pip.stdout}\n{result_pip.stderr}\n\n"
-                restart_cmd = ['sudo', 'systemctl', 'restart', 'pi-gunicorn.service']
-                result_restart = subprocess.run(restart_cmd, capture_output=True, text=True, check=True, timeout=15)
-                update_output += f"Service Restart Output:\n{result_restart.stdout}\n{result_restart.stderr}\n"
-            except Exception as e:
-                update_output += f"Update failed: {e}\n"
-                app.logger.error(f"Update error: {e}", exc_info=True)
-            try:
-                log_file = os.path.join(PROJECT_DIR, 'logs', 'update_output.log')
-                with open(log_file, 'w') as f:
-                    f.write(update_output)
-            except Exception as file_e:
-                app.logger.error(f"Failed to write update log: {file_e}", exc_info=True)
-        Thread(target=perform_update).start()
+        @after_this_request
+        def start_update(response):
+            def perform_update():
+                update_output = ""
+                try:
+                    git_cmd = ['git', 'pull']
+                    result_git = subprocess.run(git_cmd, cwd=PROJECT_DIR, capture_output=True, text=True, check=True, timeout=60)
+                    update_output += f"Git Pull Output:\n{result_git.stdout}\n{result_git.stderr}\n\n"
+                    if 'requirements.txt' in result_git.stdout:
+                        pip_cmd = [os.path.join(PROJECT_DIR, 'venv/bin/pip'), 'install', '-r', 'requirements.txt']
+                        result_pip = subprocess.run(pip_cmd, cwd=PROJECT_DIR, capture_output=True, text=True, check=True, timeout=120)
+                        update_output += f"Pip Install Output:\n{result_pip.stdout}\n{result_pip.stderr}\n\n"
+                    restart_cmd = ['sudo', 'systemctl', 'restart', 'pi-gunicorn.service']
+                    result_restart = subprocess.run(restart_cmd, capture_output=True, text=True, check=True, timeout=15)
+                    update_output += f"Service Restart Output:\n{result_restart.stdout}\n{result_restart.stderr}\n"
+                except Exception as e:
+                    update_output += f"Update failed: {e}\n"
+                    app.logger.error(f"Update error: {e}", exc_info=True)
+                try:
+                    log_file = os.path.join(PROJECT_DIR, 'logs', 'update_output.log')
+                    with open(log_file, 'w') as f:
+                        f.write(update_output)
+                except Exception as file_e:
+                    app.logger.error(f"Failed to write update log: {file_e}", exc_info=True)
+            Thread(target=perform_update).start()
+            return response
         return response
     else:
         return render_template('update.html', output="Click the button to initiate an update.")
