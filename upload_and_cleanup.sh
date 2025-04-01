@@ -1,38 +1,38 @@
 #!/bin/bash
-# Ensure this file is saved with Unix LF line endings and without a BOM!
+# Source the .env file to load environment variables.
+source /home/zmakey/sdtransfer-offloader/.env
+
 set -ex
 
 echo "--- [$(date)] Script: upload_and_cleanup.sh --- START ---"
 
-echo '[DEBUG] Determining script directory...'
-SCRIPT_DIR_CMD_OUT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SCRIPT_DIR_EXIT_CODE=$?
-if [ ${SCRIPT_DIR_EXIT_CODE} -ne 0 ] || [ -z "${SCRIPT_DIR_CMD_OUT}" ]; then
-    echo "[ERROR] Failed to determine script directory. Exiting." >&2
+# Use the environment variable for the SD mount path.
+SD_MOUNT="${SD_MOUNT_PATH:-/media/zmakey/251 GB Volume}"
+
+echo "[DEBUG] Checking mountpoint: ${SD_MOUNT}"
+if findmnt --target "${SD_MOUNT}" > /dev/null; then
+    echo "[INFO] SD card is mounted at ${SD_MOUNT}."
+else
+    echo "[ERROR] SD card mount check failed. Exiting." >&2
     exit 1
 fi
-SCRIPT_DIR="${SCRIPT_DIR_CMD_OUT}"
-echo "[INFO] Script directory: ${SCRIPT_DIR}"
 
 PROJECT_USER="zmakey"
-
-# Set the SD card mount point (as mounted by your system)
-SD_MOUNT="SD_MOUNT="${SD_MOUNT_PATH:-/media/zmakey/251 GB Volume}""
 VIDEO_REL_PATH="PRIVATE/M4ROOT/CLIP"
 PHOTO_REL_PATH="DCIM/100MSDCF"
 
-LOCAL_BASE="${SCRIPT_DIR}/footage"
+LOCAL_BASE="/home/zmakey/sdtransfer-offloader/footage"
 LOCAL_VIDEO="${LOCAL_BASE}/videos"
 LOCAL_PHOTO="${LOCAL_BASE}/photos"
 
-RCLONE_CONFIG="${SCRIPT_DIR}/rclone.conf"
+RCLONE_CONFIG="/home/zmakey/sdtransfer-offloader/rclone.conf"
 RCLONE_REMOTE_NAME="gdrive"
 RCLONE_BASE_PATH="FX3_Backups"
 
-LOG_DIR="${SCRIPT_DIR}/logs"
+LOG_DIR="/home/zmakey/sdtransfer-offloader/logs"
 RCLONE_LOG="${LOG_DIR}/upload.log"
 
-echo '[DEBUG] Verifying log directory: '"${LOG_DIR}"
+echo "[DEBUG] Verifying log directory: ${LOG_DIR}"
 if [ ! -d "${LOG_DIR}" ]; then
     echo "[WARN] Log directory not found. Creating it..."
     mkdir -p "${LOG_DIR}" || { echo "[ERROR] Could not create log directory. Exiting."; exit 1; }
@@ -41,7 +41,7 @@ fi
 touch "${LOG_DIR}/.writetest" && rm "${LOG_DIR}/.writetest"
 echo "[INFO] Log directory check passed."
 
-# Updated rclone options for faster uploads of large files:
+# Define rclone options as a Bash array.
 RCLONE_OPTS=(
     "--config" "${RCLONE_CONFIG}"
     "--log-level" "INFO"
@@ -67,7 +67,7 @@ echo "  LOCAL_PHOTO: ${LOCAL_PHOTO}"
 echo "  RCLONE_CONFIG: ${RCLONE_CONFIG}"
 echo "  RCLONE_LOG: ${RCLONE_LOG}"
 
-# Logging function: writes to both stdout and the log file.
+# Logging function
 log_msg() {
     local level="$1"
     local message="$2"
@@ -83,49 +83,30 @@ log_msg() {
 }
 
 log_msg INFO "=== upload_and_cleanup.sh script started ==="
-
 log_msg DEBUG "Checking for rclone config file: ${RCLONE_CONFIG}"
 if [ ! -f "${RCLONE_CONFIG}" ]; then
-  log_msg ERROR "Rclone config file not found at ${RCLONE_CONFIG}. Exiting."
-  exit 1
+    log_msg ERROR "Rclone config file not found at ${RCLONE_CONFIG}. Exiting."
+    exit 1
 fi
 if [ ! -r "${RCLONE_CONFIG}" ]; then
-  log_msg ERROR "Rclone config file not readable at ${RCLONE_CONFIG}. Exiting."
-  exit 1
+    log_msg ERROR "Rclone config file not readable at ${RCLONE_CONFIG}. Exiting."
+    exit 1
 fi
 log_msg INFO "Rclone config file found and readable."
 
-log_msg DEBUG "Checking mountpoint: ${SD_MOUNT}"
-if ! findmnt --target "${SD_MOUNT}" > /dev/null; then
-  log_msg WARN "SD card is not mounted at ${SD_MOUNT}."
-  log_msg ERROR "SD card mount check failed. Exiting."
-  exit 1
-fi
-log_msg INFO "SD card is mounted at ${SD_MOUNT}."
-
-log_msg DEBUG "Ensuring local directories exist for: ${LOCAL_VIDEO} and ${LOCAL_PHOTO}"
-for dir in "${LOCAL_VIDEO}" "${LOCAL_PHOTO}"; do
-    mkdir -p "${dir}" || { log_msg ERROR "Failed to create ${dir}."; exit 1; }
-    touch "${dir}/.writetest" 2>/dev/null || { log_msg ERROR "Directory ${dir} is not writable."; exit 1; }
-    rm "${dir}/.writetest"
-done
-log_msg INFO "Local directories are present and writable."
-
-VIDEO_SOURCE="${SD_MOUNT}/${VIDEO_REL_PATH}"
-PHOTO_SOURCE="${SD_MOUNT}/${PHOTO_REL_PATH}"
-log_msg DEBUG "Defined source paths: VIDEO=${VIDEO_SOURCE}, PHOTO=${PHOTO_SOURCE}"
+log_msg DEBUG "Defined source paths: VIDEO=${SD_MOUNT}/${VIDEO_REL_PATH}, PHOTO=${SD_MOUNT}/${PHOTO_REL_PATH}"
 
 log_msg INFO "Starting local copy (rsync)..."
 COPY_ERRORS=0
 
-log_msg DEBUG "Checking video source directory: ${VIDEO_SOURCE}"
-if [ ! -d "${VIDEO_SOURCE}" ]; then
-    log_msg WARN "Video source directory ${VIDEO_SOURCE} not found. Skipping video copy."
-elif [ ! -r "${VIDEO_SOURCE}" ]; then
-    log_msg WARN "Video source directory ${VIDEO_SOURCE} not readable. Skipping video copy."
+log_msg DEBUG "Checking video source directory: ${SD_MOUNT}/${VIDEO_REL_PATH}"
+if [ ! -d "${SD_MOUNT}/${VIDEO_REL_PATH}" ]; then
+    log_msg WARN "Video source directory ${SD_MOUNT}/${VIDEO_REL_PATH} not found. Skipping video copy."
+elif [ ! -r "${SD_MOUNT}/${VIDEO_REL_PATH}" ]; then
+    log_msg WARN "Video source directory ${SD_MOUNT}/${VIDEO_REL_PATH} not readable. Skipping video copy."
 else
-    log_msg INFO "Copying videos from ${VIDEO_SOURCE} to ${LOCAL_VIDEO}..."
-    rsync -av --no-perms --ignore-existing "${VIDEO_SOURCE}/" "${LOCAL_VIDEO}/" >> "${RCLONE_LOG}" 2>&1
+    log_msg INFO "Copying videos from ${SD_MOUNT}/${VIDEO_REL_PATH} to ${LOCAL_VIDEO}..."
+    rsync -av --no-perms --ignore-existing "${SD_MOUNT}/${VIDEO_REL_PATH}/" "${LOCAL_VIDEO}/" >> "${RCLONE_LOG}" 2>&1
     RSYNC_V_EXIT=$?
     if [ ${RSYNC_V_EXIT} -eq 0 ]; then
         log_msg INFO "Video copy completed successfully."
@@ -135,14 +116,14 @@ else
     fi
 fi
 
-log_msg DEBUG "Checking photo source directory: ${PHOTO_SOURCE}"
-if [ ! -d "${PHOTO_SOURCE}" ]; then
-    log_msg WARN "Photo source directory ${PHOTO_SOURCE} not found. Skipping photo copy."
-elif [ ! -r "${PHOTO_SOURCE}" ]; then
-    log_msg WARN "Photo source directory ${PHOTO_SOURCE} not readable. Skipping photo copy."
+log_msg DEBUG "Checking photo source directory: ${SD_MOUNT}/${PHOTO_REL_PATH}"
+if [ ! -d "${SD_MOUNT}/${PHOTO_REL_PATH}" ]; then
+    log_msg WARN "Photo source directory ${SD_MOUNT}/${PHOTO_REL_PATH} not found. Skipping photo copy."
+elif [ ! -r "${SD_MOUNT}/${PHOTO_REL_PATH}" ]; then
+    log_msg WARN "Photo source directory ${SD_MOUNT}/${PHOTO_REL_PATH} not readable. Skipping photo copy."
 else
-    log_msg INFO "Copying photos from ${PHOTO_SOURCE} to ${LOCAL_PHOTO}..."
-    rsync -av --no-perms --ignore-existing "${PHOTO_SOURCE}/" "${LOCAL_PHOTO}/" >> "${RCLONE_LOG}" 2>&1
+    log_msg INFO "Copying photos from ${SD_MOUNT}/${PHOTO_REL_PATH} to ${LOCAL_PHOTO}..."
+    rsync -av --no-perms --ignore-existing "${SD_MOUNT}/${PHOTO_REL_PATH}/" "${LOCAL_PHOTO}/" >> "${RCLONE_LOG}" 2>&1
     RSYNC_P_EXIT=$?
     if [ ${RSYNC_P_EXIT} -eq 0 ]; then
         log_msg INFO "Photo copy completed successfully."
@@ -202,7 +183,7 @@ else
         log_msg ERROR "rclone photo upload failed (exit code ${RCLONE_P_EXIT})."
         UPLOAD_ERRORS=1
     else
-         log_msg INFO "Photo upload completed successfully."
+        log_msg INFO "Photo upload completed successfully."
     fi
 fi
 
