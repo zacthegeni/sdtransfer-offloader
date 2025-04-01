@@ -86,7 +86,6 @@ def get_system_status():
         app.logger.error(f"Error checking SD mount status: {e}")
         status['sd_card_mounted'] = False
         status['sd_card_path_exists'] = False
-    # Last offload run
     last_run_file = os.path.join(PROJECT_DIR, "logs", "last_run.txt")
     try:
         if os.path.exists(last_run_file):
@@ -103,7 +102,8 @@ def read_log_file(log_path, lines=100):
     if not os.path.exists(log_path):
         return f"Log file not found: {log_path}"
     try:
-        process = subprocess.run(['tail', '-n', str(lines), log_path], capture_output=True, text=True, check=False)
+        process = subprocess.run(['tail', '-n', str(lines), log_path],
+                                   capture_output=True, text=True, check=False)
         return process.stdout if process.stdout else "(Log is empty)"
     except Exception as e:
         return f"Error reading log file: {e}"
@@ -298,9 +298,12 @@ def update_system():
                         pip_cmd = [os.path.join(PROJECT_DIR, 'venv/bin/pip'), 'install', '-r', 'requirements.txt']
                         result_pip = subprocess.run(pip_cmd, cwd=PROJECT_DIR, capture_output=True, text=True, check=True, timeout=120)
                         update_output += f"Pip Install Output:\n{result_pip.stdout}\n{result_pip.stderr}\n\n"
-                    restart_cmd = ['sudo', 'systemctl', 'restart', 'pi-gunicorn.service']
-                    result_restart = subprocess.run(restart_cmd, capture_output=True, text=True, check=True, timeout=15)
-                    update_output += f"Service Restart Output:\n{result_restart.stdout}\n{result_restart.stderr}\n"
+                    if sys.platform.startswith('linux'):
+                        restart_cmd = ['sudo', 'systemctl', 'restart', 'pi-gunicorn.service']
+                        result_restart = subprocess.run(restart_cmd, capture_output=True, text=True, check=True, timeout=15)
+                        update_output += f"Service Restart Output:\n{result_restart.stdout}\n{result_restart.stderr}\n"
+                    else:
+                        update_output += "Restart skipped on non-Linux system.\n"
                 except Exception as e:
                     update_output += f"Update failed: {e}\n"
                     app.logger.error(f"Update error: {e}", exc_info=True)
@@ -481,6 +484,16 @@ def run_send_test_email():
     except Exception as e:
         flash(f"Error executing send_notification.py: {e}", "error")
         return jsonify({"success": False, "message": f"Error executing script: {e}"})
+
+# NEW STREAM ENDPOINT FOR SSE
+@app.route('/stream')
+def stream():
+    def event_stream():
+        # Dummy implementation: sends a keepalive message every 30 seconds.
+        while True:
+            yield "data: {}\n\n".format(json.dumps({"message": "Keepalive", "type": "info"}))
+            time.sleep(30)
+    return Response(event_stream(), mimetype="text/event-stream")
 
 if __name__ == '__main__':
     app.logger.info(f"Starting Flask App. Internal Notify Token: {INTERNAL_NOTIFY_TOKEN[:4]}... (hidden)")
