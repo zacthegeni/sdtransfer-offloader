@@ -1,41 +1,14 @@
 {% extends "base.html" %}
 {% block title %}Backup Config - SDTransfer Offloader{% endblock %}
 {% block content %}
-  <h2><i class="fa fa-save"></i> Backup Configuration Files</h2>
-
+  <h2>Backup Configuration Files</h2>
   <div class="panel">
-    <h3>Backup Action</h3>
-     <p>Click the button below to create a timestamped backup of key configuration files (.env, email_config.json, rclone.conf) to the backup directory.</p>
-     <a class="btn" href="{{ url_for('backup_config') }}"><i class="fa fa-download"></i> Create New Backup</a>
-     <p style="margin-top:10px;">Backup Location: <code>{{ backup_dir }}</code></p>
-
-     {% if backed_up_now %}
-        <h4 style="margin-top: 20px;">Files Backed Up Just Now:</h4>
-        <ul>
-          {% for file in backed_up_now %}
-            <li><code>{{ file }}</code></li>
-          {% endfor %}
-        </ul>
-     {% endif %}
+    <p>The following files have been backed up:</p>
+    <ul>
+      {% for file in files %}
+        <li>{{ file }}</li>
+      {% endfor %}
+    </ul>
   </div>
-
-
-  <div class="panel">
-    <h3>Existing Backups</h3>
-    {% if existing_backups %}
-        <p>Previously created backup files:</p>
-        <ul style="max-height: 300px; overflow-y: auto; background-color:#111; padding: 10px; border-radius: 4px;">
-          {% for file in existing_backups %}
-            <li><code>{{ file }}</code></li>
-          {% endfor %}
-        </ul>
-        <p style="margin-top: 10px; font-size: 0.9em; color: #aaa;">
-            You may need to access the Raspberry Pi via SSH or console to restore or delete these backups.
-        </p>
-    {% else %}
-        <p>No existing backups found in <code>{{ backup_dir }}</code>.</p>
-    {% endif %}
-  </div>
-
-  <a class="btn" href="{{ url_for('index') }}"><i class="fa fa-arrow-left"></i> Back to Dashboard</a>
+  <a class="btn" href="{{ url_for('index') }}"><i class="fa fa-home"></i> Back to Dashboard</a>
 {% endblock %}

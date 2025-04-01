@@ -1,32 +1,30 @@
 {% extends "base.html" %}
 {% block title %}Wi‑Fi Settings - SDTransfer Offloader{% endblock %}
 {% block content %}
-  <h2><i class="fa fa-wifi"></i> Wi‑Fi Settings</h2>
+  <h2>Wi‑Fi Settings</h2>
   <div class="panel">
     <form method="post" action="{{ url_for('wifi') }}">
-       <p>Add a new Wi-Fi network configuration. Note: Scanning for available networks is not implemented.</p>
-      <!-- <label for="ssid">Available Networks:</label>
+      <label for="ssid">Available Networks:</label>
       <select id="ssid" name="ssid" class="wifi-select">
         {% if ssids %}
           {% for s in ssids %}
             <option value="{{ s }}">{{ s }}</option>
           {% endfor %}
         {% else %}
-          <option value="">(No networks scanned)</option>
+          <option value="">(No networks scanned or scanning not implemented)</option>
         {% endif %}
       </select>
-      <p>Or enter SSID manually:</p> -->
-      <label for="custom_ssid">Network Name (SSID):</label>
-      <input type="text" id="custom_ssid" placeholder="Enter Network Name (SSID)" name="custom_ssid" required>
 
-      <label for="psk">Password (PSK):</label>
-      <input type="password" id="psk" name="psk" placeholder="Enter Network Password" required>
+      <p>Or enter a custom SSID (for hidden networks):</p>
+      <input type="text" name="custom_ssid" placeholder="Hidden SSID (optional)">
 
-      <input class="btn" type="submit" value="Add Network & Connect">
+      <label for="psk">Password:</label>
+      <input type="password" id="psk" name="psk" required>
+
+      <input class="btn" type="submit" value="Connect">
     </form>
-     <p style="margin-top: 15px; font-size: 0.9em; color: #aaa;">
-        Note: Adding a network requires appropriate system permissions. The system will attempt to reconfigure the Wi-Fi interface after adding. Check system logs if connection fails.
-     </p>
   </div>
-  <a class="btn" href="{{ url_for('index') }}"><i class="fa fa-arrow-left"></i> Back to Dashboard</a>
+  <a class="btn" href="{{ url_for('index') }}">
+    <i class="fa fa-home"></i> Back to Dashboard
+  </a>
 {% endblock %}
