@@ -17,7 +17,7 @@ echo "[INFO] Script directory: ${SCRIPT_DIR}"
 PROJECT_USER="zmakey"
 
 # Set the SD card mount point (as mounted by your system)
-SD_MOUNT="/media/zmakey/A0C2-FF6F"
+SD_MOUNT="SD_MOUNT="${SD_MOUNT_PATH:-/media/zmakey/251 GB Volume}""
 VIDEO_REL_PATH="PRIVATE/M4ROOT/CLIP"
 PHOTO_REL_PATH="DCIM/100MSDCF"
 
