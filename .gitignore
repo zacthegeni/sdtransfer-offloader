@@ -35,3 +35,4 @@ email_config.json
 
 # Rclone config if copied into project (usually it's in ~/.config)
 rclone.conf
+.env
